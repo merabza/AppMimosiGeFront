@@ -8,7 +8,7 @@ var(--sidebar-color);
 var(--sidebar-background-color);
 */
 :root {
-    --sidebar-color: #FFEA00;
-    --sidebar-background-color: #ffea00be;
-    --sidebar-border-bottom-color: #ffea009a;
+    --sidebar-color: #032d099e;
+    --sidebar-background-color: #032d099e;
+    --sidebar-border-bottom-color: #032d099e;
 }
