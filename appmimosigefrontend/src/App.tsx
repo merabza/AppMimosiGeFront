@@ -134,11 +134,11 @@ const App: FC = () => {
                             <Route path="profile" element={<Profile />} />
 
                             <Route
-                                path="Rights/:rView/:dtKey/:key"
+                                path="Rights/:rView/:dtTable/:key"
                                 element={<FrmRights />}
                             />
                             <Route
-                                path="Rights/:rView/:dtKey"
+                                path="Rights/:rView/:dtTable"
                                 element={<FrmRights />}
                             />
                             <Route

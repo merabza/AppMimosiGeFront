@@ -30,11 +30,11 @@ const TopNavMenu: FC = () => {
                     <Route path="/" element={<div />} />
                     {/* Carcass */}
                     <Route
-                        path="/Rights/:rView/:dtKey/:key"
+                        path="/Rights/:rView/:dtTable/:key"
                         element={<RightsTopNavMenu />}
                     />
                     <Route
-                        path="/Rights/:rView/:dtKey"
+                        path="/Rights/:rView/:dtTable"
                         element={<RightsTopNavMenu />}
                     />
                     <Route
