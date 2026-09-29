@@ -68,6 +68,8 @@ import MdItemEdit from "./appcarcass/masterdata/MdItemEdit";
 import PageNotFound from "./appcarcass/common/PageNotFound";
 import type { FC } from "react";
 import MdList from "./appcarcass/masterdata/MdList";
+import StudentContracts from "./studentContracts/StudentContracts";
+import StudentContractEdit from "./studentContracts/StudentContractEdit";
 
 library.add(
     faCheckSquare,
@@ -166,6 +168,18 @@ const App: FC = () => {
                             />
 
                             {/* Project AppRoutes start */}
+                            <Route
+                                path="studentContracts"
+                                element={<StudentContracts />}
+                            />
+                            <Route
+                                path="studentContractEdit/:scId"
+                                element={<StudentContractEdit />}
+                            />
+                            <Route
+                                path="studentContractEdit"
+                                element={<StudentContractEdit />}
+                            />
 
 
                             {/* Project AppRoutes finish */}
