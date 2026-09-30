@@ -14,6 +14,7 @@ import type {
     IStudentContract,
     IStudentContractFormLookups,
 } from "../redux/types/studentContractsTypes";
+import { studentContractsApi } from "../redux/api/studentContractsApi";
 import StudentContractEdit from "./StudentContractEdit";
 import { todayDateInputValue } from "./dateFormat";
 
@@ -326,12 +327,31 @@ describe("StudentContractEdit", () => {
         expect(await screen.findByText("შემდეგი გადახდის თარიღი: —")).toBeInTheDocument();
     });
 
-    it("loads the contract again every time the page opens", async () => {
-        const calls = serve();
+    // the second load returns changed data: the form must show it, not the copy cached by the first load
+    it("loads the contract again every time the page opens and shows the fresh data", async () => {
+        let loads7 = 0;
+        const calls = serve({
+            contracts: {
+                "7": () =>
+                    Promise.resolve({
+                        status: 200,
+                        body: { ...contract, desiredMonthlyPaymentDay: ++loads7 === 1 ? 15 : 20 },
+                    }),
+            },
+        });
         const store = createStudentContractsStore();
         const first = renderEditor("/editor/7", "withRight", store);
         await screen.findByText("მოსწავლის კონტრაქტი 6.007");
+        expect(screen.getByLabelText("გადახდის სასურველი დღე")).toHaveValue(15);
         first.unmount();
+        // closing and opening again take at least a tick (a list page, a click), so the cache drops
+        // the closed contract before it is opened again
+        await waitFor(() =>
+            expect(
+                studentContractsApi.endpoints.getStudentContract.select(7)(store.getState())
+                    .isUninitialized
+            ).toBe(true)
+        );
 
         renderEditor("/editor/7", "withRight", store);
         await screen.findByText("მოსწავლის კონტრაქტი 6.007");
@@ -339,6 +359,41 @@ describe("StudentContractEdit", () => {
         await waitFor(() =>
             expect(calls.filter((c) => c.method === "GET" && c.url.endsWith("/7"))).toHaveLength(2)
         );
+        await waitFor(() => expect(screen.getByLabelText("გადახდის სასურველი დღე")).toHaveValue(20));
+    });
+
+    it("shows the fresh data when the editor returns to a contract it showed before", async () => {
+        let loads7 = 0;
+        const calls = serve({
+            contracts: {
+                "7": () =>
+                    Promise.resolve({
+                        status: 200,
+                        body: { ...contract, desiredMonthlyPaymentDay: ++loads7 === 1 ? 15 : 20 },
+                    }),
+                "8": { status: 200, body: contract8 },
+            },
+        });
+        renderOnRoute(
+            <>
+                <StudentContractEdit />
+                <GoTo to="/editor/8" />
+                <GoTo to="/editor/7" />
+            </>,
+            createStudentContractsStore(),
+            "/editor/:scId",
+            "/editor/7"
+        );
+        await screen.findByText("მოსწავლის კონტრაქტი 6.007");
+        expect(screen.getByLabelText("გადახდის სასურველი დღე")).toHaveValue(15);
+        fireEvent.click(screen.getByRole("button", { name: "go /editor/8" }));
+        await screen.findByText("მოსწავლის კონტრაქტი 6.008");
+
+        fireEvent.click(screen.getByRole("button", { name: "go /editor/7" }));
+
+        await screen.findByText("მოსწავლის კონტრაქტი 6.007");
+        await waitFor(() => expect(screen.getByLabelText("გადახდის სასურველი დღე")).toHaveValue(20));
+        expect(calls.filter((c) => c.method === "GET" && c.url.endsWith("/7"))).toHaveLength(2);
     });
 
     it("switches to another contract without reusing the previous form", async () => {

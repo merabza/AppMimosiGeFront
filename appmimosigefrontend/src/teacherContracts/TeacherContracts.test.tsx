@@ -1,7 +1,7 @@
 //TeacherContracts.test.tsx
 
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import {
     decodeFilterSortRequest,
@@ -91,8 +91,9 @@ describe("TeacherContracts", () => {
         const cells = within(link.closest("tr")!)
             .getAllByRole("cell")
             .map((cell) => cell.textContent);
+        // row number, number, date, employee, scheme, pension, ind. entrepreneur, amount, end date
         expect(cells).toEqual(
-            expect.arrayContaining(["01.09.2025", "Alpha Ann", "Senior", "✓", "850.50", "30.06.2027"])
+            ["1", "T3.07", "01.09.2025", "Alpha Ann", "Senior", "✓", "", "850.50", "30.06.2027"]
         );
         for (const caption of [
             "კ. N",
@@ -140,8 +141,7 @@ describe("TeacherContracts", () => {
         const cells = within(link.closest("tr")!)
             .getAllByRole("cell")
             .map((cell) => cell.textContent);
-        expect(cells).not.toContain("✓");
-        expect(cells).not.toContain("0.00");
+        expect(cells).toEqual(["1", "T3.07", "01.09.2025", "Alpha Ann", "", "", "", "", ""]);
     });
 
     it("offers a link to a new contract", async () => {
@@ -173,6 +173,65 @@ describe("TeacherContracts", () => {
                 filterFields: [{ fieldName: "search", value: "ალფა" }],
             })
         );
+        expect(screen.getByLabelText("კონტრაქტები")).toHaveValue("all");
+    });
+
+    it("goes back to the active contracts when they are chosen again", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByRole("link", { name: "T3.07" });
+        const filter = screen.getByLabelText("კონტრაქტები");
+        fireEvent.change(filter, { target: { value: "all" } });
+        await waitFor(() => expect(lastRowsRequest(calls)?.filterFields).toEqual([]));
+
+        fireEvent.change(filter, { target: { value: "active" } });
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.filterFields).toEqual([
+                { fieldName: "activeOnly", value: "true" },
+            ])
+        );
+        expect(filter).toHaveValue("active");
+    });
+
+    describe("with fake timers", () => {
+        beforeEach(() => vi.useFakeTimers());
+        afterEach(() => vi.useRealTimers());
+
+        // runs the search pause timer and lets the mocked fetch and the re-render finish
+        const settle = (ms = 1000) => act(() => vi.advanceTimersByTimeAsync(ms));
+
+        it("loads nothing for a user without the right, even after the search pause", async () => {
+            const calls = serve();
+
+            renderList("withoutRight");
+            await settle();
+
+            expect(calls).toHaveLength(0);
+        });
+
+        it("loads nothing while the menu is loading, even after the search pause", async () => {
+            const calls = serve();
+
+            renderList("loading");
+            await settle();
+
+            expect(calls).toHaveLength(0);
+        });
+    });
+
+    it("sorts by the individual entrepreneur column", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByRole("link", { name: "T3.07" });
+
+        fireEvent.click(screen.getByRole("link", { name: /ინდ\. მეწარმე/ }));
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.sortByFields).toEqual([
+                { fieldName: "indEnt", ascending: true },
+            ])
+        );
     });
 
     it("sends the sort order chosen in the grid", async () => {
@@ -190,6 +249,22 @@ describe("TeacherContracts", () => {
         expect(lastRowsRequest(calls)?.filterFields).toEqual([
             { fieldName: "activeOnly", value: "true" },
         ]);
+    });
+
+    it("searches only for the text typed last", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByRole("link", { name: "T3.07" });
+
+        fireEvent.change(screen.getByLabelText("ძებნა"), { target: { value: "a" } });
+        fireEvent.change(screen.getByLabelText("ძებნა"), { target: { value: "al" } });
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.filterFields).toContainEqual({ fieldName: "search", value: "al" })
+        );
+        expect(
+            rowsRequests(calls).some((r) => r.filterFields.some((f) => f.value === "a"))
+        ).toBe(false);
     });
 
     it("does not submit the filter form (Enter in the search box)", async () => {

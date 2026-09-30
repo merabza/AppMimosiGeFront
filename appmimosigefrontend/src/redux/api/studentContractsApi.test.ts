@@ -94,6 +94,25 @@ describe("studentContractsApi", () => {
         expect(result.data).toEqual({ scId: 7 });
     });
 
+    // a closed contract is dropped from the cache, so opening it again always loads it from the server
+    it("loads a contract again when it is opened after being closed", async () => {
+        const calls = mockFetch(() => ({ status: 200, body: { scId: 7 } }));
+        const store = createStudentContractsStore();
+        const first = store.dispatch(studentContractsApi.endpoints.getStudentContract.initiate(7));
+        await first;
+
+        first.unsubscribe();
+        await waitFor(() =>
+            expect(
+                studentContractsApi.endpoints.getStudentContract.select(7)(store.getState())
+                    .isUninitialized
+            ).toBe(true)
+        );
+        await store.dispatch(studentContractsApi.endpoints.getStudentContract.initiate(7));
+
+        expect(calls.map((c) => c.url)).toEqual([`${base}/7`, `${base}/7`]);
+    });
+
     it("creates, updates and deletes with the right methods and bodies", async () => {
         const calls = mockFetch((call) => ({
             status: 200,

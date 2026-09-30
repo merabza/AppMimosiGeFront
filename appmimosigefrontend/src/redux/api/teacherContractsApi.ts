@@ -78,6 +78,8 @@ export const teacherContractsApi = createApi({
         }),
         getTeacherContract: builder.query<ITeacherContract, number>({
             query: (id) => ({ url: `${baseUrl}/${id}` }),
+            //დახურული კონტრაქტი ქეშში არ რჩება: ხელახლა გახსნისას ფორმა ქეშის ძველი მონაცემით არ უნდა შეივსოს
+            keepUnusedDataFor: 0,
             providesTags: (_result, _error, id) => [
                 { type: "TeacherContract", id },
             ],

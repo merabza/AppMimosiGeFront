@@ -35,16 +35,24 @@ describe("newTeacherContractForm", () => {
     it("starts with today, a zero fixed amount and nothing chosen", () => {
         const form = newTeacherContractForm("2026-09-30");
 
-        expect(form).toMatchObject({
+        expect(form).toEqual({
             contractNumber: "",
             contractDate: "2026-09-30",
             teacherHumanId: 0,
-            fixedAmount: "0",
-            rsCountryId: "",
+            teacherName: "",
+            bankAccount: "",
+            bankAccountCode: "",
             pensionScheme: false,
             indEnt: false,
+            rsQuoteTypeId: "",
+            rsCountryId: "",
+            fixedAmount: "0",
             nextMonth: false,
+            description: "",
+            salarySchemaByHoursId: "",
+            workHourGroupId: "",
             workHoursStart: "",
+            workHoursEnd: "",
             contractEndDate: "",
         });
     });

@@ -77,6 +77,8 @@ export const studentContractsApi = createApi({
         }),
         getStudentContract: builder.query<IStudentContract, number>({
             query: (scId) => ({ url: `${baseUrl}/${scId}` }),
+            //დახურული კონტრაქტი ქეშში არ რჩება: ხელახლა გახსნისას ფორმა ქეშის ძველი მონაცემით არ უნდა შეივსოს
+            keepUnusedDataFor: 0,
             providesTags: (_result, _error, scId) => [
                 { type: "StudentContract", id: scId },
             ],

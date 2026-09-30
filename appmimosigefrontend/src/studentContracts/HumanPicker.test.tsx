@@ -6,6 +6,8 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockFetch, type FetchReply } from "../testUtils/testStore";
 import { createStudentContractsStore } from "../testUtils/studentContractsTestStore";
+import { createTeacherContractsStore } from "../testUtils/teacherContractsTestStore";
+import { useLazySearchTeacherHumansQuery } from "../redux/api/teacherContractsApi";
 import HumanPicker from "./HumanPicker";
 
 function renderPicker(humanId = 0, humanName = "") {
@@ -178,6 +180,33 @@ describe("HumanPicker", () => {
 
         await waitFor(() => expect(input).toHaveValue("Gamma Gia"));
         expect(screen.queryByText("Alpha Ann")).not.toBeInTheDocument();
+    });
+
+    // each page searches through its own endpoint, so only its own menu right is needed
+    it("searches through the endpoint of the given search hook", async () => {
+        const calls = mockFetch(() => ({ status: 200, body: [{ id: 3, name: "Gamma Gia" }] }));
+        const onChange = vi.fn();
+        render(
+            <Provider store={createTeacherContractsStore()}>
+                <MemoryRouter>
+                    <HumanPicker
+                        id="teacher"
+                        label="თანამშრომელი"
+                        humanId={0}
+                        humanName=""
+                        onChange={onChange}
+                        useSearchHumans={useLazySearchTeacherHumansQuery}
+                    />
+                </MemoryRouter>
+            </Provider>
+        );
+
+        search(screen.getByLabelText("თანამშრომელი"), "ga");
+        fireEvent.mouseDown(await screen.findByText("Gamma Gia"));
+
+        expect(calls).toHaveLength(1);
+        expect(calls[0].url).toContain("/teachercontracts/humans?search=ga");
+        expect(onChange).toHaveBeenCalledWith(3, "Gamma Gia");
     });
 
     it("links to the new person form in a new tab", () => {
