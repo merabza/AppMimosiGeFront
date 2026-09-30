@@ -184,8 +184,9 @@ describe("StudentContractEdit", () => {
         for (const caption of ["4 კვირის საათები", "4 კვირის გადასახადი", "საათის ღირებულება"])
             expect(screen.getByRole("columnheader", { name: caption })).toBeInTheDocument();
         expect(screen.getByLabelText("4 კვირის საათები 1")).toHaveAttribute("step", "0.5");
-        expect(screen.getByLabelText("4 კვირის გადასახადი 1")).toHaveAttribute("step", "0.01");
-        expect(screen.getByLabelText("საათის ღირებულება 1")).toHaveAttribute("step", "0.01");
+        // money has 4 decimals, so the fee fields take any value
+        expect(screen.getByLabelText("4 კვირის გადასახადი 1")).toHaveAttribute("step", "any");
+        expect(screen.getByLabelText("საათის ღირებულება 1")).toHaveAttribute("step", "any");
     });
 
     it("creates the contract with the student as payer and returns to the list", async () => {
@@ -443,6 +444,52 @@ describe("StudentContractEdit", () => {
             contractNumber: "6.007",
             payerHumanId: 2,
             details: [{ id: 100, fourWeekHours: 12, fourWeekFee: 90, oneHourFee: 7.5 }],
+        });
+    });
+
+    // money is stored with 4 decimals (SQL money): the browser's own check of the form, which the save button
+    // runs (fireEvent.submit skips it), must not refuse such a rate
+    it("saves a loaded rate with four decimals through the save button", async () => {
+        const calls = serve({
+            contracts: {
+                "7": {
+                    status: 200,
+                    body: {
+                        ...contract,
+                        details: [
+                            { ...contract.details[0], fourWeekHours: 18, fourWeekFee: 300, oneHourFee: 16.6667 },
+                        ],
+                    },
+                },
+            },
+        });
+        renderEditor("/editor/7");
+        await screen.findByText("მოსწავლის კონტრაქტი 6.007");
+
+        fireEvent.click(saveButton());
+
+        expect(await screen.findByText("list page")).toBeInTheDocument();
+        expect(changes(calls)[0].body).toMatchObject({
+            details: [{ id: 100, fourWeekHours: 18, fourWeekFee: 300, oneHourFee: 16.6667 }],
+        });
+    });
+
+    it("saves a recalculated rate with four decimals through the save button", async () => {
+        const calls = serve();
+        renderEditor("/editor/7");
+        const hours = await screen.findByLabelText("4 კვირის საათები 1");
+
+        fireEvent.change(hours, { target: { value: "9" } });
+        fireEvent.blur(hours);
+        const fee = screen.getByLabelText("4 კვირის გადასახადი 1");
+        fireEvent.change(fee, { target: { value: "48" } });
+        fireEvent.blur(fee);
+        fireEvent.click(saveButton());
+
+        expect(await screen.findByText("list page")).toBeInTheDocument();
+        // 48 / 9 = 5.3333 per hour
+        expect(changes(calls)[0].body).toMatchObject({
+            details: [{ id: 100, fourWeekHours: 9, fourWeekFee: 48, oneHourFee: 5.3333 }],
         });
     });
 

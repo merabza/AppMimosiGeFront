@@ -34,10 +34,12 @@ import {
     useHasStudentContractsRight,
 } from "./studentContractsMenu";
 
+//თანხა ბაზაში 4 ათწილადამდე ინახება (money) და გადათვლაც ასეთ მნიშვნელობას იძლევა (48 / 9 = 5.3333), ამიტომ
+//თანხის ველის ნაბიჯი არ იზღუდება: "0.01"-ზე ბრაუზერი ასეთ ფორმას არ აგზავნიდა (D60)
 const feeColumns: { field: FeeField; caption: string; step: string }[] = [
     { field: "fourWeekHours", caption: "4 კვირის საათები", step: "0.5" },
-    { field: "fourWeekFee", caption: "4 კვირის გადასახადი", step: "0.01" },
-    { field: "oneHourFee", caption: "საათის ღირებულება", step: "0.01" },
+    { field: "fourWeekFee", caption: "4 კვირის გადასახადი", step: "any" },
+    { field: "oneHourFee", caption: "საათის ღირებულება", step: "any" },
 ];
 
 const StudentContractEdit: FC = () => {
