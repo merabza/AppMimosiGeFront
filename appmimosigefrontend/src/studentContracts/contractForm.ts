@@ -125,11 +125,11 @@ export function formToRequest(form: IContractForm): IStudentContractRequest {
     };
 }
 
-//Access-ის AfterUpdate: ველიდან გასვლისას (onBlur) დანარჩენი ტარიფი ხელახლა ითვლება
-export function recalculateAfterFeeFieldChange(
-    row: IDetailFormRow,
-    changedField: FeeField
-): IDetailFormRow {
+//Access-ის AfterUpdate: ველიდან გასვლისას (onBlur) დანარჩენი ტარიფი ხელახლა ითვლება.
+//ჯგუფის მოსწავლის ტარიფიც (GroupsByStudents) ამ ფუნქციით ითვლება
+export function recalculateAfterFeeFieldChange<
+    T extends Pick<IDetailFormRow, FeeField>,
+>(row: T, changedField: FeeField): T {
     const fields = {
         fourWeekHours: toNumber(row.fourWeekHours),
         fourWeekFee: toNumber(row.fourWeekFee),

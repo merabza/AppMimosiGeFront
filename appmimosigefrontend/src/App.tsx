@@ -72,6 +72,8 @@ import StudentContracts from "./studentContracts/StudentContracts";
 import StudentContractEdit from "./studentContracts/StudentContractEdit";
 import TeacherContracts from "./teacherContracts/TeacherContracts";
 import TeacherContractEdit from "./teacherContracts/TeacherContractEdit";
+import Groups from "./groups/Groups";
+import GroupEdit from "./groups/GroupEdit";
 
 library.add(
     faCheckSquare,
@@ -194,6 +196,12 @@ const App: FC = () => {
                                 path="teacherContractEdit"
                                 element={<TeacherContractEdit />}
                             />
+                            <Route path="groups" element={<Groups />} />
+                            <Route
+                                path="groupEdit/:grpId"
+                                element={<GroupEdit />}
+                            />
+                            <Route path="groupEdit" element={<GroupEdit />} />
 
 
                             {/* Project AppRoutes finish */}
