@@ -32,6 +32,7 @@ describe("dateFormat", () => {
     it("formats API dates without time zone shifts", () => {
         expect(formatDate("2026-09-15T00:00:00")).toBe("15.09.2026");
         expect(formatDateTime("2026-10-01T16:30:00")).toBe("01.10.2026 16:30");
+        expect(formatDateTime("2026-10-01")).toBe("01.10.2026");
         expect(toDateInputValue("2026-09-15T00:00:00")).toBe("2026-09-15");
     });
 

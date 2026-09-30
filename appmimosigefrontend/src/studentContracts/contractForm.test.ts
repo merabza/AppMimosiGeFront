@@ -52,6 +52,31 @@ describe("newContractForm", () => {
         });
     });
 
+    it("starts every other field empty", () => {
+        expect(newContractForm("2026-09-29", 11)).toEqual({
+            contractNumber: "",
+            contractDate: "2026-09-29",
+            studentHumanId: 0,
+            studentName: "",
+            payerHumanId: 0,
+            payerName: "",
+            academicYearId: "11",
+            studentStatusId: "",
+            desiredMonthlyPaymentDay: "",
+            details: [
+                {
+                    key: expect.any(Number),
+                    id: 0,
+                    courseId: "",
+                    groupSizeId: "",
+                    fourWeekHours: "8",
+                    fourWeekFee: "48",
+                    oneHourFee: "6",
+                },
+            ],
+        });
+    });
+
     it("leaves the year empty when there is no current year", () => {
         expect(newContractForm("2026-09-29", null).academicYearId).toBe("");
     });
@@ -88,6 +113,13 @@ describe("contractToForm / formToRequest", () => {
                 },
             ],
         });
+    });
+
+    it("shows a missing payment day as an empty field", () => {
+        expect(
+            contractToForm({ ...contract, desiredMonthlyPaymentDay: null })
+                .desiredMonthlyPaymentDay
+        ).toBe("");
     });
 
     it("trims the number, empties optional fields to null and reads decimal commas", () => {
