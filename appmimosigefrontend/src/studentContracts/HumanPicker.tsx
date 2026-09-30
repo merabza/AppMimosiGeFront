@@ -5,9 +5,17 @@ import { Form, InputGroup, ListGroup } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useLazySearchHumansQuery } from "../redux/api/studentContractsApi";
+import type { ILookupItem } from "../redux/types/studentContractsTypes";
 
 //ძებნა სერვერზე 2 სიმბოლოდან იწყება (SearchHumansQueryHandler.MinSearchLength)
 const minSearchLength = 2;
+
+//ძებნის lazy query-ის hook: ყოველ გვერდს თავისი endpoint-ი აქვს, რომ მისი მენიუს უფლება შემოწმდეს
+export type SearchHumansHook = () => readonly [
+    (search: string) => unknown,
+    { data?: ILookupItem[]; isFetching: boolean },
+    ...unknown[],
+];
 
 type HumanPickerProps = {
     id: string;
@@ -15,16 +23,23 @@ type HumanPickerProps = {
     humanId: number;
     humanName: string;
     onChange: (humanId: number, humanName: string) => void;
+    useSearchHumans?: SearchHumansHook;
 };
 
 //ადამიანის ძებნადი არჩევა გვარ-სახელით ან პირადი ნომრის დასაწყისით.
 //ახალი ადამიანი ემატება ადამიანების სიის ფორმაში (ახალ ჩანართში), შემდეგ აქ მოიძებნება
 const HumanPicker: FC<HumanPickerProps> = (props) => {
-    const { id, label, humanId, humanName, onChange } = props;
+    const {
+        id,
+        label,
+        humanId,
+        humanName,
+        onChange,
+        useSearchHumans = useLazySearchHumansQuery,
+    } = props;
     const [search, setSearch] = useState("");
     const [searching, setSearching] = useState(false);
-    const [searchHumans, { data: humans, isFetching }] =
-        useLazySearchHumansQuery();
+    const [searchHumans, { data: humans, isFetching }] = useSearchHumans();
 
     useEffect(() => {
         if (!searching || search.trim().length < minSearchLength) return;

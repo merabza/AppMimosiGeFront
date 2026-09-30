@@ -70,6 +70,8 @@ import type { FC } from "react";
 import MdList from "./appcarcass/masterdata/MdList";
 import StudentContracts from "./studentContracts/StudentContracts";
 import StudentContractEdit from "./studentContracts/StudentContractEdit";
+import TeacherContracts from "./teacherContracts/TeacherContracts";
+import TeacherContractEdit from "./teacherContracts/TeacherContractEdit";
 
 library.add(
     faCheckSquare,
@@ -179,6 +181,18 @@ const App: FC = () => {
                             <Route
                                 path="studentContractEdit"
                                 element={<StudentContractEdit />}
+                            />
+                            <Route
+                                path="teacherContracts"
+                                element={<TeacherContracts />}
+                            />
+                            <Route
+                                path="teacherContractEdit/:id"
+                                element={<TeacherContractEdit />}
+                            />
+                            <Route
+                                path="teacherContractEdit"
+                                element={<TeacherContractEdit />}
                             />
 
 
