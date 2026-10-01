@@ -8,6 +8,7 @@ import {
     type MenuState,
 } from "../testUtils/studentContractsTestStore";
 import { createGroupsStore, renderGroupsOnRoute } from "../testUtils/groupsTestStore";
+import { changedGroup, generation } from "../testUtils/lessonGeneratorTestData";
 import type { IGroupFormLookups, IGroupRow } from "../redux/types/groupsTypes";
 import Groups from "./Groups";
 
@@ -415,5 +416,23 @@ describe("Groups", () => {
         renderList();
 
         expect(await screen.findByText("ჩატვირთვის პრობლემა")).toBeInTheDocument();
+    });
+
+    // the generator clears DirtyLessons: the list reloads after it
+    it("generates the lessons of the dirty groups and reloads the list", async () => {
+        const calls = mockFetch((call) => {
+            if (call.url.includes("/lessongenerator/")) return { status: 200, body: generation([changedGroup]) };
+            if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+            return { status: 200, body: { allRowsCount: 1, offset: 0, rows: [groupRow] } };
+        });
+        renderList();
+        await screen.findByRole("link", { name: "1001" });
+        const listLoads = () => calls.filter((c) => c.url.includes("/groups/rowsdata")).length;
+        const loadsBefore = listLoads();
+
+        fireEvent.click(screen.getByRole("button", { name: /ყველა ჯგუფის გაკვეთილები/ }));
+
+        expect(await screen.findByText(/გაკვეთილები დათვლილია/)).toBeInTheDocument();
+        await waitFor(() => expect(listLoads()).toBeGreaterThan(loadsBefore));
     });
 });

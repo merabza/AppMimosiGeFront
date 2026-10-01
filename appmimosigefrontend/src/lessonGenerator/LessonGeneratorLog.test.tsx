@@ -1,6 +1,6 @@
 //LessonGeneratorLog.test.tsx
 
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { mockFetch, testBaseUrl } from "../testUtils/testStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
@@ -31,8 +31,8 @@ const rows: ILessonGeneratorLogRow[] = [
     },
 ];
 
-function renderLog(url = "/log", menu: MenuState = "withRight") {
-    return renderGroupsOnRoute(<LessonGeneratorLog />, createGroupsStore(menu), "/log", url);
+function renderLog(url = "/log", menu: MenuState = "withRight", store = createGroupsStore(menu)) {
+    return renderGroupsOnRoute(<LessonGeneratorLog />, store, "/log", url);
 }
 
 async function flush() {
@@ -87,6 +87,42 @@ describe("LessonGeneratorLog", () => {
             "href",
             "/lessonGeneratorLog"
         );
+    });
+
+    it("leaves the date and the lesson empty for an error of the whole group", async () => {
+        mockFetch(() => ({ status: 200, body: rows }));
+
+        renderLog();
+
+        const row = (await screen.findByText(/1. ჯგუფში მასწავლებელი/)).closest("tr") as HTMLTableRowElement;
+        expect(row.cells[1].textContent).toBe("");
+        expect(row.cells[2].textContent).toBe("");
+    });
+
+    it.each([
+        ["/log", "ლოგში ყოველი ჯგუფის მხოლოდ ბოლო გენერაციის შეცდომებია. ჯგუფები"],
+        [
+            "/log?grpId=7",
+            "ლოგში ყოველი ჯგუფის მხოლოდ ბოლო გენერაციის შეცდომებია. ნაჩვენებია ერთი ჯგუფი: ჯგუფის გვერდი, ყველა ჯგუფის ლოგი",
+        ],
+    ])("explains the log on %s", async (url, expected) => {
+        mockFetch(() => ({ status: 200, body: rows }));
+
+        renderLog(url);
+
+        expect((await screen.findByText(/ლოგში ყოველი ჯგუფის/)).textContent).toBe(expected);
+    });
+
+    it("loads the log again when the page is opened again", async () => {
+        const calls = mockFetch(() => ({ status: 200, body: rows }));
+        const store = createGroupsStore();
+        const firstVisit = renderLog("/log", "withRight", store);
+        await screen.findByText(/14. აღმოჩენილია/);
+        firstVisit.unmount();
+
+        renderLog("/log", "withRight", store);
+
+        await waitFor(() => expect(calls).toHaveLength(2));
     });
 
     it("says so when there are no errors", async () => {

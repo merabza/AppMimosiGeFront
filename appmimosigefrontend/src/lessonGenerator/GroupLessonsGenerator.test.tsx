@@ -4,7 +4,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import AlertMessages from "../appcarcass/common/AlertMessages";
 import { EAlertKind } from "../appcarcass/redux/slices/alertSlice";
-import { mockFetch, testBaseUrl, type FetchReply } from "../testUtils/testStore";
+import { mockFetch, testBaseUrl, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import { createGroupsStore, renderGroupsOnRoute } from "../testUtils/groupsTestStore";
 import { changedGroup, generation, groupGeneration } from "../testUtils/lessonGeneratorTestData";
 import GroupLessonsGenerator from "./GroupLessonsGenerator";
@@ -25,6 +25,17 @@ function renderGenerator(hasUnsavedChanges = false) {
 
 const lessonsButton = () => screen.getByRole("button", { name: /ამ ჯგუფის გაკვეთილები/ });
 const lastLessonButton = () => screen.getByRole("button", { name: /ამ ჯგუფის ბოლო გაკვეთილი/ });
+const spinnerIn = (button: HTMLElement) => button.querySelector(".spinner-border");
+const buttons = [
+    ["lessons", lessonsButton],
+    ["last lesson", lastLessonButton],
+] as const;
+
+// the first request gets the reply, the later ones never finish
+function replyOnce(reply: (call: FetchCall) => FetchReply) {
+    let attempt = 0;
+    return mockFetch((call) => (attempt++ === 0 ? reply(call) : new Promise<FetchReply>(() => {})));
+}
 
 describe("GroupLessonsGenerator", () => {
     it("generates the lessons of the group and shows the result", async () => {
@@ -94,7 +105,50 @@ describe("GroupLessonsGenerator", () => {
         expect(screen.queryByText(/გაკვეთილები დათვლილია/)).not.toBeInTheDocument();
     });
 
-    it("forgets the previous result when the next generation starts and closes the result", async () => {
+    it.each([
+        ["lessons", lessonsButton, lastLessonButton],
+        ["last lesson", lastLessonButton, lessonsButton],
+    ])("shows the spinner only in the %s button while it runs", async (_, running, other) => {
+        mockFetch(() => new Promise<FetchReply>(() => {}));
+        renderGenerator();
+        expect(spinnerIn(running())).toBeNull();
+
+        fireEvent.click(running());
+
+        await waitFor(() => expect(spinnerIn(running())).not.toBeNull());
+        expect(spinnerIn(other())).toBeNull();
+    });
+
+    it.each(buttons)("clears the previous error when the next %s generation starts", async (_, button) => {
+        replyOnce(() => ({ status: 404, body: { title: "GroupNotFound", detail: "ჯგუფი ვერ მოიძებნა", status: 404 } }));
+        renderGenerator();
+        fireEvent.click(button());
+        await screen.findByText(/ჯგუფი ვერ მოიძებნა/);
+
+        fireEvent.click(button());
+
+        await waitFor(() => expect(button()).toBeDisabled());
+        expect(screen.queryByText(/ჯგუფი ვერ მოიძებნა/)).not.toBeInTheDocument();
+    });
+
+    it.each(buttons)("forgets the previous result when the next %s generation starts", async (_, button) => {
+        replyOnce((call) => ({
+            status: 200,
+            body: call.url.endsWith("/lastlesson")
+                ? { lessonId: 4165, lessonDt: "2026-09-28T15:00:00", generation: generated }
+                : generated,
+        }));
+        renderGenerator();
+        fireEvent.click(button());
+        await screen.findByText(/გაკვეთილები დათვლილია/);
+
+        fireEvent.click(button());
+
+        await waitFor(() => expect(button()).toBeDisabled());
+        expect(screen.queryByText(/გაკვეთილები დათვლილია/)).not.toBeInTheDocument();
+    });
+
+    it("closes the result", async () => {
         mockFetch(() => ({ status: 200, body: generated }));
         renderGenerator();
         fireEvent.click(lessonsButton());
