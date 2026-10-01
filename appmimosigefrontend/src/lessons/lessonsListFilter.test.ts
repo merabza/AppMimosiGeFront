@@ -80,6 +80,14 @@ describe("filterFromSearchParams", () => {
         });
     });
 
+    // one filter parameter is enough to leave the default week; the missing ones are empty
+    it("with one filter parameter leaves the others empty", () => {
+        expect(filterFromSearchParams(new URLSearchParams("teacherContractId=3"), now)).toEqual({
+            ...emptyFilter,
+            teacherContractId: "3",
+        });
+    });
+
     // the group page link: all the group's lessons, no dates
     it("an empty date parameter stays empty", () => {
         expect(

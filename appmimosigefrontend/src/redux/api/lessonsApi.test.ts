@@ -96,4 +96,27 @@ describe("lessonsApi", () => {
             "not this lesson"
         );
     });
+
+    // the list and the lookups report their load errors too; every failure is appended
+    it("writes failed list and lookup loads into ApiLoad", async () => {
+        mockFetch(() => ({
+            status: 400,
+            body: { title: "FilterSortRequestIsInvalid", detail: "bad filter", status: 400 },
+        }));
+        const store = createLessonsStore();
+
+        await store.dispatch(
+            lessonsApi.endpoints.getLessonsRowsData.initiate({
+                offset: 0,
+                rowsCount: 10,
+                filterFields: [],
+                sortByFields: [],
+            })
+        );
+        expect(store.getState().alertState.alert.ApiLoad).toHaveLength(1);
+        await store.dispatch(lessonsApi.endpoints.getLessonFormLookups.initiate());
+
+        expect(store.getState().alertState.alert.ApiLoad).toHaveLength(2);
+        expect(store.getState().alertState.alert.ApiMutation).toBeUndefined();
+    });
 });

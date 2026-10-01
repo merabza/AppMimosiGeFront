@@ -19,11 +19,7 @@ import {
 } from "../redux/api/lessonsApi";
 import type { ILessonRow } from "../redux/types/lessonsTypes";
 import { formatDateTime } from "../studentContracts/dateFormat";
-import {
-    lessonEditRoute,
-    lessonEditUrl,
-    useHasLessonsRight,
-} from "./lessonsMenu";
+import { lessonEditUrl, useHasLessonsRight } from "./lessonsMenu";
 import {
     buildLessonsFilterFields,
     currentMonth,
@@ -241,7 +237,6 @@ const Lessons: FC = () => {
                 columns={columns}
                 rowsData={rangeInvalid ? undefined : rowsData}
                 loading={isFetching}
-                editorLink={`/${lessonEditRoute}`}
                 onLoadRows={(offset, rowsCount, sortByFields) =>
                     load({ offset, rowsCount, sortByFields })
                 }

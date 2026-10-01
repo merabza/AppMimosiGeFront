@@ -1,6 +1,6 @@
 //Lessons.test.tsx
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { mockFetch, type FetchCall } from "../testUtils/testStore";
 import { decodeFilterSortRequest, type MenuState } from "../testUtils/studentContractsTestStore";
@@ -8,6 +8,7 @@ import {
     createLessonsStore,
     lessonLookups,
     renderLessonsOnRoute,
+    type LessonsStore,
 } from "../testUtils/lessonsTestStore";
 import type { ILessonRow } from "../redux/types/lessonsTypes";
 import { currentMonth, currentWeek } from "./lessonsListFilter";
@@ -36,6 +37,11 @@ function serve(): FetchCall[] {
 
 function renderList(url = "/lessons", menu: MenuState = "withRight") {
     return renderLessonsOnRoute(<Lessons />, createLessonsStore(menu), "/lessons", url);
+}
+
+// the queries the page started in the store: a started query is there at once, before any fetch
+function startedQueries(store: LessonsStore) {
+    return Object.keys(store.getState().lessonsApi.queries);
 }
 
 function lastRowsRequest(calls: FetchCall[]) {
@@ -68,8 +74,23 @@ describe("Lessons", () => {
         renderList();
 
         await screen.findByText("30.09.2026 15:00");
-        for (const text of ["1001", "Math", "Alpha Ann", "Beta Bob", "არ გაუქმებულა", "3", "2"])
-            expect(screen.getAllByText(text).length).toBeGreaterThan(0);
+        //the cells of the row in column order (the filter selects hold some of these texts too)
+        expect(
+            within(screen.getAllByRole("row")[1])
+                .getAllByRole("cell")
+                .map((c) => c.textContent)
+        ).toEqual([
+            "1",
+            "30.09.2026 15:00",
+            "1001",
+            "Math",
+            "Alpha Ann",
+            "Beta Bob",
+            "არ გაუქმებულა",
+            "3",
+            "2",
+            "9",
+        ]);
     });
 
     it("opens the lesson from its time", async () => {
@@ -139,14 +160,84 @@ describe("Lessons", () => {
         await waitFor(() => expect(filterValue(calls, "dateFrom")).toBe(currentWeek().dateFrom));
     });
 
-    it("changes a date by hand", async () => {
+    it("changes both dates by hand", async () => {
         const calls = serve();
         renderList();
         await screen.findByText("30.09.2026 15:00");
 
         fireEvent.change(screen.getByLabelText("თარიღამდე"), { target: { value: "2026-12-31" } });
-
         await waitFor(() => expect(filterValue(calls, "dateTo")).toBe("2026-12-31"));
+        fireEvent.change(screen.getByLabelText("თარიღიდან"), { target: { value: "2026-09-01" } });
+
+        await waitFor(() => expect(filterValue(calls, "dateFrom")).toBe("2026-09-01"));
+        expect(filterValue(calls, "dateTo")).toBe("2026-12-31");
+    });
+
+    it("shows the column captions and the lesson id in a column that does not sort", async () => {
+        serve();
+        renderList();
+        await screen.findByText("30.09.2026 15:00");
+
+        expect(screen.getAllByRole("columnheader").map((h) => h.textContent?.trim())).toEqual([
+            "N",
+            "თარიღი და დრო",
+            "ჯგუფი",
+            "საგანი",
+            "მასწავლებელი",
+            "შემცვლელი",
+            "სტატუსი",
+            "მოსწავლეები",
+            "დამსწრეები",
+            "ID",
+        ]);
+        //the server sorts by the listed fields only: the id column has no sort link
+        expect(
+            within(screen.getByRole("columnheader", { name: "ID" })).queryByRole("link")
+        ).not.toBeInTheDocument();
+        const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+        expect(cells[cells.length - 1].textContent).toBe("9");
+    });
+
+    it("sorts by a clicked column and keeps the filter", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByText("30.09.2026 15:00");
+
+        fireEvent.click(screen.getByRole("link", { name: "ჯგუფი" }));
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls).sortByFields).toEqual([
+                { fieldName: "groupCode", ascending: true },
+            ])
+        );
+        expect(filterValue(calls, "dateFrom")).toBe(currentWeek().dateFrom);
+    });
+
+    // a filter change replaces the address: the browser's back button leaves the list
+    it("does not add a history entry for a filter change", async () => {
+        serve();
+        renderLessonsOnRoute(<Lessons />, createLessonsStore(), "/lessons", "/start", "/lessons");
+        await screen.findByText("30.09.2026 15:00");
+
+        fireEvent.change(screen.getByLabelText("ჯგუფი"), { target: { value: "8" } });
+        await waitFor(() =>
+            expect(screen.getByTestId("location").textContent).toContain("grpId=8")
+        );
+        fireEvent.click(screen.getByRole("button", { name: "test back" }));
+
+        expect(screen.getByTestId("location").textContent).toBe("/start");
+    });
+
+    it("keeps the browser on the page when the filter form is submitted", async () => {
+        serve();
+        const { container } = renderList();
+        await screen.findByText("30.09.2026 15:00");
+        const form = container.querySelector("form")!;
+        const submit = createEvent.submit(form);
+
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
     });
 
     it("warns about a reversed range and does not ask the server", async () => {
@@ -161,18 +252,22 @@ describe("Lessons", () => {
 
     it("says so without the lessons right and loads nothing", () => {
         const calls = serve();
-        renderList("/lessons", "withoutRight");
+        const store = createLessonsStore("withoutRight");
+        renderLessonsOnRoute(<Lessons />, store, "/lessons", "/lessons");
 
         expect(screen.getByText("გაკვეთილების ნახვის უფლება არ გაქვთ")).toBeInTheDocument();
+        expect(startedQueries(store)).toEqual([]);
         expect(calls).toHaveLength(0);
     });
 
-    it("waits for the menu", () => {
+    it("waits for the menu and loads nothing meanwhile", () => {
         serve();
-        renderList("/lessons", "loading");
+        const store = createLessonsStore("loading");
+        renderLessonsOnRoute(<Lessons />, store, "/lessons", "/lessons");
 
         expect(screen.queryByText("გაკვეთილების ნახვის უფლება არ გაქვთ")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("ჯგუფი")).not.toBeInTheDocument();
+        expect(startedQueries(store)).toEqual([]);
     });
 
     it("shows the load error", async () => {

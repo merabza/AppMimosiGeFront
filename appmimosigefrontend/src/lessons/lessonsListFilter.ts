@@ -107,11 +107,8 @@ export function buildLessonsFilterFields(
     ].filter((f) => f.value !== "");
 }
 
-//დაწყება დასრულებაზე გვიან: სერვერი ასეთ ფილტრს არ იღებს
+//დაწყება დასრულებაზე გვიან: სერვერი ასეთ ფილტრს არ იღებს. "YYYY-MM-DD" სტრიქონებად შედარდება;
+//ცარიელი დაწყება არცერთ თარიღზე გვიან არ არის, ცარიელი დასრულება კი შეზღუდვის არქონაა
 export function isDateRangeInvalid(filter: ILessonsListFilter): boolean {
-    return (
-        filter.dateFrom !== "" &&
-        filter.dateTo !== "" &&
-        filter.dateFrom > filter.dateTo
-    );
+    return filter.dateTo !== "" && filter.dateFrom > filter.dateTo;
 }

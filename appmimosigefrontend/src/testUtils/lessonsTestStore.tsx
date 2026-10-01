@@ -16,7 +16,7 @@ import userReducer, { setUser } from "../appcarcass/redux/slices/userSlice";
 import type { IAppUser } from "../appcarcass/redux/types/authenticationTypes";
 import { lessonsApi } from "../redux/api/lessonsApi";
 import type { ILesson, ILessonFormLookups } from "../redux/types/lessonsTypes";
-import LocationProbe from "./LocationProbe";
+import LocationProbe, { BackButton } from "./LocationProbe";
 import { mainMenu, type MenuState } from "./studentContractsTestStore";
 import { testBaseUrl } from "./testStore";
 
@@ -65,6 +65,7 @@ export function renderLessonsOnRoute(
                     <Route path="/groupEdit/:grpId" element={<div>group page</div>} />
                 </Routes>
                 <LocationProbe />
+                <BackButton />
             </MemoryRouter>
         </Provider>
     );

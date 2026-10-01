@@ -1,13 +1,15 @@
 //LessonEdit.test.tsx
 
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { clearAlert, EAlertKind } from "../appcarcass/redux/slices/alertSlice";
 import { mockFetch, testBaseUrl, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import {
     createLessonsStore,
     lessonData,
     lessonLookups,
     renderLessonsOnRoute,
+    type LessonsStore,
 } from "../testUtils/lessonsTestStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import type { ILesson } from "../redux/types/lessonsTypes";
@@ -341,5 +343,284 @@ describe("LessonEdit", () => {
         renderEditor();
 
         expect(await screen.findByText("ჩატვირთვის პრობლემა")).toBeInTheDocument();
+    });
+});
+
+describe("LessonEdit details", () => {
+    const loadingText = "მიმდინარეობს ჩატვირთვა...";
+    const clearButton = (row: number) =>
+        within(screen.getAllByRole("row")[row]).getByRole("button", { name: "გასუფთავება" });
+
+    function renderEditorWith(store: LessonsStore, ...urls: string[]) {
+        return renderLessonsOnRoute(
+            <LessonEdit />,
+            store,
+            "/lessonEdit/:lessonId",
+            ...(urls.length === 0 ? ["/lessonEdit/9"] : urls)
+        );
+    }
+
+    it("shows the group, time and id in the heading", async () => {
+        serve();
+        await renderLoaded();
+
+        expect(screen.getByRole("heading", { level: 5 }).textContent).toBe(
+            "გაკვეთილი: ჯგუფი 1001, 30.09.2026 15:00 (ID 9)"
+        );
+    });
+
+    it("captions the grid columns", async () => {
+        serve();
+        await renderLoaded();
+
+        expect(
+            within(screen.getByRole("table"))
+                .getAllByRole("columnheader")
+                .map((h) => h.textContent)
+        ).toEqual([
+            "მოსწავლე",
+            "საათები",
+            "დაესწრო",
+            "თემა",
+            "შეფასება",
+            "მასწავლებლის კომენტარი",
+            "მოსწავლის კომენტარი",
+            "დაგვიანება წთ.",
+            "",
+        ]);
+        expect(screen.getByText(/↑ ↓ და Enter/)).toBeInTheDocument();
+    });
+
+    // a rate may have any decimals, lateness is whole minutes from 0, the texts fit their columns
+    it("limits the grid inputs as the columns do", async () => {
+        serve();
+        await renderLoaded();
+
+        expect(numberCell("Gamma Gia", "შეფასება")).toHaveAttribute("step", "any");
+        expect(numberCell("Gamma Gia", "დაგვიანება წთ.")).toHaveAttribute("min", "0");
+        expect(numberCell("Gamma Gia", "დაგვიანება წთ.")).toHaveAttribute("step", "1");
+        for (const caption of ["თემა", "მასწავლებლის კომენტარი", "მოსწავლის კომენტარი"])
+            expect(cell("Gamma Gia", caption)).toHaveAttribute("maxLength", "255");
+        expect(screen.getByLabelText("შენიშვნა")).toHaveAttribute("maxLength", "255");
+        expect(screen.getByLabelText("მასწ. დაგვიანება წთ.")).toHaveAttribute("min", "0");
+    });
+
+    it("lists 'none' first among the substitutes", async () => {
+        serve();
+        await renderLoaded();
+
+        expect(
+            within(screen.getByLabelText("შემცვლელი"))
+                .getAllByRole("option")
+                .map((o) => o.textContent)
+        ).toEqual(["-- არ არის --", "Alpha Ann / T3.01", "Beta Bob / T3.02"]);
+    });
+
+    it("sends the student comment typed in its column", async () => {
+        const calls = serve();
+        await renderLoaded();
+
+        fireEvent.change(cell("Delta Dan", "მოსწავლის კომენტარი"), { target: { value: "late bus" } });
+        fireEvent.click(saveButton());
+
+        await screen.findByText("შენახულია");
+        const body = puts(calls)[0].body as { students: { id: number; studentComment: string | null }[] };
+        expect(body.students.map((s) => s.studentComment)).toEqual([null, "late bus", null]);
+    });
+
+    // the clear button is outside the keyboard path and says what it clears
+    it("keeps the clear button out of the tab order", async () => {
+        serve();
+        await renderLoaded();
+
+        expect(clearButton(1)).toHaveAttribute("tabindex", "-1");
+        expect(clearButton(1)).toHaveAttribute(
+            "title",
+            "დასწრების, თემის, შეფასების და კომენტარების გასუფთავება"
+        );
+    });
+
+    // lateness alone or entered data alone is something to clear; an empty row is not
+    it("enables clearing for any row with something to clear", async () => {
+        const [gamma, delta, epsilon] = lessonData().students;
+        serve({
+            9: lessonData({
+                students: [
+                    { ...gamma, theme: null, rate: null, teacherComment: null, studentLateMinutes: 0 },
+                    { ...delta, studentLateMinutes: 7 },
+                    epsilon,
+                ],
+            }),
+        });
+        await renderLoaded();
+
+        expect(clearButton(1)).toBeEnabled();
+        expect(clearButton(2)).toBeEnabled();
+        expect(clearButton(3)).toBeDisabled();
+    });
+
+    it("clears only the chosen student", async () => {
+        serve();
+        await renderLoaded();
+        fireEvent.click(presentBox("Delta Dan"));
+
+        fireEvent.click(clearButton(1));
+
+        expect(presentBox("Gamma Gia")).not.toBeChecked();
+        expect(presentBox("Delta Dan")).toBeChecked();
+    });
+
+    it("leaves Enter on a grid button to the browser", async () => {
+        serve();
+        await renderLoaded();
+
+        expect(fireEvent.keyDown(clearButton(1), { key: "Enter" })).toBe(true);
+    });
+
+    it("keeps the browser on the page when the form is submitted", async () => {
+        serve();
+        const { container } = await renderLoaded();
+        const form = container.querySelector("form")!;
+        const submit = createEvent.submit(form);
+
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
+        await screen.findByText("შენახულია");
+    });
+
+    it("shows a spinner on the save button while saving", async () => {
+        serve(undefined, () => new Promise<FetchReply>(() => {}) as unknown as FetchReply);
+        await renderLoaded();
+        expect(saveButton().querySelector(".spinner-border")).toBeNull();
+
+        fireEvent.click(saveButton());
+
+        await waitFor(() => expect(saveButton()).toBeDisabled());
+        expect(saveButton().querySelector(".spinner-border")).not.toBeNull();
+    });
+
+    it("clears the error of a failed save when saving again", async () => {
+        let attempt = 0;
+        serve(undefined, () =>
+            attempt++ === 0
+                ? {
+                      status: 400,
+                      body: { title: "LessonStatusNotFound", detail: "status error", status: 400 },
+                  }
+                : { status: 200 }
+        );
+        await renderLoaded();
+        fireEvent.click(saveButton());
+        expect(await screen.findByText(/status error/)).toBeInTheDocument();
+
+        fireEvent.click(saveButton());
+
+        expect(await screen.findByText("შენახულია")).toBeInTheDocument();
+        expect(screen.queryByText(/status error/)).not.toBeInTheDocument();
+    });
+
+    // an edit hides "saved" even when it is undone again
+    it.each([
+        [
+            "a lesson field",
+            () => {
+                fireEvent.change(screen.getByLabelText("შენიშვნა"), { target: { value: "x" } });
+                fireEvent.change(screen.getByLabelText("შენიშვნა"), { target: { value: "" } });
+            },
+        ],
+        [
+            "a student field",
+            () => {
+                fireEvent.click(presentBox("Delta Dan"));
+                fireEvent.click(presentBox("Delta Dan"));
+            },
+        ],
+    ])("hides 'saved' after %s is changed and changed back", async (_, editAndUndo) => {
+        serve();
+        await renderLoaded();
+        fireEvent.click(saveButton());
+        await screen.findByText("შენახულია");
+
+        editAndUndo();
+
+        expect(screen.getByRole("button", { name: /წინა გაკვეთილი/ })).toBeEnabled();
+        expect(screen.queryByText("შენახულია")).not.toBeInTheDocument();
+    });
+
+    it("does not carry 'saved' to the next lesson", async () => {
+        serve({ 9: lessonData(), 10: lessonData({ lessonId: 10, previousLessonId: 9, nextLessonId: null }) });
+        await renderLoaded();
+        fireEvent.click(saveButton());
+        await screen.findByText("შენახულია");
+
+        fireEvent.click(screen.getByRole("button", { name: /შემდეგი გაკვეთილი/ }));
+
+        await waitFor(() => expect(screen.getByRole("heading", { level: 5 }).textContent).toContain("(ID 10)"));
+        expect(screen.queryByText("შენახულია")).not.toBeInTheDocument();
+    });
+
+    it("does not carry a save error to the next lesson", async () => {
+        serve(
+            { 9: lessonData(), 10: lessonData({ lessonId: 10, previousLessonId: 9, nextLessonId: null }) },
+            () => ({
+                status: 400,
+                body: { title: "LessonStatusNotFound", detail: "status error", status: 400 },
+            })
+        );
+        await renderLoaded();
+        fireEvent.click(saveButton());
+        await screen.findByText(/status error/);
+
+        fireEvent.click(screen.getByRole("button", { name: /შემდეგი გაკვეთილი/ }));
+
+        await waitFor(() => expect(screen.getByRole("heading", { level: 5 }).textContent).toContain("(ID 10)"));
+        expect(screen.queryByText(/status error/)).not.toBeInTheDocument();
+    });
+
+    // the old lesson is not shown under the new address while the new one loads
+    it("shows the loading page while the next lesson loads", async () => {
+        let answerLesson10: (reply: FetchReply) => void = () => {};
+        mockFetch((call) => {
+            if (call.url.endsWith("/formlookups")) return { status: 200, body: lessonLookups };
+            if (call.url.endsWith("/lessons/10"))
+                return new Promise<FetchReply>((resolve) => {
+                    answerLesson10 = resolve;
+                });
+            return { status: 200, body: lessonData() };
+        });
+        await renderLoaded();
+
+        fireEvent.click(screen.getByRole("button", { name: /შემდეგი გაკვეთილი/ }));
+
+        expect(await screen.findByText(loadingText)).toBeInTheDocument();
+        expect(screen.queryByText("Gamma Gia")).not.toBeInTheDocument();
+        answerLesson10({ status: 200, body: lessonData({ lessonId: 10, previousLessonId: 9 }) });
+        await waitFor(() => expect(screen.getByRole("heading", { level: 5 }).textContent).toContain("(ID 10)"));
+    });
+
+    // a failed load keeps the previous lesson's data in the query; it never fills the form of the new address
+    it("never fills a lesson's form with the previous lesson after a failed load", async () => {
+        serve({ 9: lessonData() });
+        const store = createLessonsStore();
+        renderEditorWith(store);
+        await screen.findByText("Gamma Gia");
+
+        fireEvent.click(screen.getByRole("button", { name: /შემდეგი გაკვეთილი/ }));
+        expect(await screen.findByText("ჩატვირთვის პრობლემა")).toBeInTheDocument();
+        act(() => {
+            store.dispatch(clearAlert(EAlertKind.ApiLoad));
+        });
+
+        expect(screen.getByText(loadingText)).toBeInTheDocument();
+        expect(screen.queryByText("Gamma Gia")).not.toBeInTheDocument();
+    });
+
+    it("starts no query without the lessons right", () => {
+        serve();
+        const store = createLessonsStore("withoutRight");
+        renderEditorWith(store);
+
+        expect(Object.keys(store.getState().lessonsApi.queries)).toEqual([]);
     });
 });

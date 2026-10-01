@@ -140,6 +140,19 @@ describe("lessonFormToRequest", () => {
         });
     });
 
+    // a blank number is no number: "  " would otherwise turn into 0
+    it("sends a blank rate as null and blank minutes as 0", () => {
+        const request = lessonFormToRequest({
+            ...lessonToForm(lessonData()),
+            teacherLateMinutes: " ",
+            students: [{ ...emptyRow, rate: "  ", studentLateMinutes: " " }],
+        });
+
+        expect(request.teacherLateMinutes).toBe(0);
+        expect(request.students[0].rate).toBeNull();
+        expect(request.students[0].studentLateMinutes).toBe(0);
+    });
+
     it("keeps a rate of 0", () => {
         expect(
             lessonFormToRequest({

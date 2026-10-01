@@ -9,6 +9,11 @@ describe("cellKey and parseCellKey", () => {
         expect(parseCellKey("2-5")).toEqual({ row: 2, column: 5 });
     });
 
+    // a class has fewer than 10 students, but the grid works for any size
+    it("reads numbers of several digits", () => {
+        expect(parseCellKey(cellKey({ row: 12, column: 30 }))).toEqual({ row: 12, column: 30 });
+    });
+
     it.each([undefined, "", "2", "a-1", "1-2-3", "-1-2"])(
         "reads %s as no cell",
         (value) => {

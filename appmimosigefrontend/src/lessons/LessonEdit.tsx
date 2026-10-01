@@ -68,14 +68,12 @@ const LessonEdit: FC = () => {
     const { data: lookups } = useGetLessonFormLookupsQuery(undefined, {
         skip: !hasRight,
     });
+    //ქეშში დახურული გაკვეთილი არ რჩება (keepUnusedDataFor: 0), ამიტომ ყოველი გახსნა სერვერიდან იტვირთება
     const {
         data: lesson,
         isFetching: lessonLoading,
         refetch,
-    } = useGetLessonQuery(
-        lessonId,
-        { skip: !hasRight, refetchOnMountOrArgChange: true }
-    );
+    } = useGetLessonQuery(lessonId, { skip: !hasRight });
     const [updateLesson, { isLoading: saving }] = useUpdateLessonMutation();
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
 
@@ -167,9 +165,7 @@ const LessonEdit: FC = () => {
 
     //ისრები ზემოთ/ქვემოთ და Enter ბადეში იმავე სვეტის მეზობელ სტრიქონზე გადადის (Enter ფორმას არ ინახავს)
     function handleGridKeyDown(e: React.KeyboardEvent<HTMLTableSectionElement>) {
-        const cell = parseCellKey(
-            (e.target as HTMLElement).dataset?.lessonCell
-        );
+        const cell = parseCellKey((e.target as HTMLElement).dataset.lessonCell);
         if (!cell || !form) return;
         if (!["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) return;
         e.preventDefault();
