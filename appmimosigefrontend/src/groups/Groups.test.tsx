@@ -1,6 +1,6 @@
 //Groups.test.tsx
 
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { mockFetch, type FetchCall } from "../testUtils/testStore";
 import {
@@ -60,7 +60,7 @@ const studentRow: IGroupRow = {
     activeStudentsCount: null,
     studentName: "Delta Dan",
     startDate: "2026-09-01T00:00:00",
-    endDate: null,
+    endDate: "2027-05-31T00:00:00",
 };
 
 // the rows of every find method, as the backend answers them
@@ -154,6 +154,154 @@ describe("Groups", () => {
         );
     });
 
+    // every find method shows its own columns; the key column stays hidden
+    it("shows the columns of the chosen find method", async () => {
+        serve();
+        renderList();
+        await screen.findByRole("link", { name: "1001" });
+        const headers = () =>
+            screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
+
+        expect(headers()).toEqual([
+            "N",
+            "კოდი",
+            "საგანი",
+            "ზომა",
+            "მოსწ. სტატუსი",
+            "მასწავლებელი დღეს",
+            "მოსწავლეები დღეს",
+            "გაუქმება",
+            "საჭიროებს გაკვეთილების დაზუსტებას",
+            "სასწ. წელი",
+        ]);
+
+        fireEvent.change(screen.getByLabelText("ძებნის რეჟიმი"), { target: { value: "teacher" } });
+        expect(headers()).toEqual(["N", "მასწავლებელი", "კოდი", "საგანი", "ზომა", "დაწყება", "დასრულება"]);
+
+        fireEvent.change(screen.getByLabelText("ძებნის რეჟიმი"), { target: { value: "student" } });
+        expect(headers()).toEqual(["N", "მოსწავლე", "კოდი", "საგანი", "ზომა", "დაწყება", "დასრულება"]);
+    });
+
+    it("shows the void date of a voided group and an empty mark when no lessons are to check", async () => {
+        mockFetch((call) =>
+            call.url.includes("/formlookups")
+                ? { status: 200, body: lookups }
+                : {
+                      status: 200,
+                      body: {
+                          allRowsCount: 1,
+                          offset: 0,
+                          rows: [
+                              {
+                                  ...groupRow,
+                                  voidDate: "2026-12-31T00:00:00",
+                                  dirtyLessons: false,
+                                  teacherName: null,
+                                  activeStudentsCount: 0,
+                              },
+                          ],
+                      },
+                  }
+        );
+
+        renderList();
+
+        const link = await screen.findByRole("link", { name: "1001" });
+        expect(rowCells(link)).toEqual([
+            "1", "1001", "Math", "4-Four", "Tenth", "", "0", "31.12.2026", "", "2026-2027",
+        ]);
+    });
+
+    // the columns of another find method can not sort its list, so a new find method starts unsorted
+    it("forgets the sort when the find method changes", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByRole("link", { name: "1001" });
+
+        fireEvent.click(screen.getByRole("link", { name: /საგანი/ }));
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.sortByFields).toEqual([
+                { fieldName: "courseName", ascending: true },
+            ])
+        );
+        fireEvent.change(screen.getByLabelText("ძებნის რეჟიმი"), { target: { value: "teacher" } });
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)).toMatchObject({
+                offset: 0,
+                rowsCount: 10,
+                sortByFields: [],
+                filterFields: [
+                    { fieldName: "findMethod", value: "teacher" },
+                    { fieldName: "academicYearId", value: "11" },
+                    { fieldName: "state", value: "active" },
+                ],
+            })
+        );
+    });
+
+    // the mark column sorts by the flag itself
+    it("sorts by the lessons mark when its column is clicked", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByRole("link", { name: "1001" });
+
+        fireEvent.click(screen.getByRole("link", { name: /საჭიროებს გაკვეთილების დაზუსტებას/ }));
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.sortByFields).toEqual([
+                { fieldName: "dirtyLessons", ascending: true },
+            ])
+        );
+    });
+
+    it("lists the groups of every year when there is no current year", async () => {
+        const calls = mockFetch((call) =>
+            call.url.includes("/formlookups")
+                ? { status: 200, body: { ...lookups, currentAcademicYearId: null } }
+                : { status: 200, body: { allRowsCount: 1, offset: 0, rows: [groupRow] } }
+        );
+
+        renderList();
+
+        await screen.findByRole("link", { name: "1001" });
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("");
+        expect(lastRowsRequest(calls)?.filterFields).toEqual([
+            { fieldName: "findMethod", value: "group" },
+            { fieldName: "state", value: "active" },
+        ]);
+    });
+
+    // the list is asked once the typing stops, not after every letter
+    it("searches once the typing stops", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByRole("link", { name: "1001" });
+
+        fireEvent.change(screen.getByLabelText("ძებნა"), { target: { value: "1" } });
+        fireEvent.change(screen.getByLabelText("ძებნა"), { target: { value: "10" } });
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.filterFields).toContainEqual({ fieldName: "search", value: "10" })
+        );
+        const searches = calls
+            .filter((c) => c.url.includes("/groups/rowsdata"))
+            .map((c) => decodeFilterSortRequest(c.url).filterFields.find((f) => f.fieldName === "search")?.value);
+        expect(searches).not.toContain("1");
+    });
+
+    it("keeps the browser on the page when Enter is pressed in the search", async () => {
+        serve();
+        renderList();
+        await screen.findByRole("link", { name: "1001" });
+        const form = screen.getByLabelText("ძებნა").closest("form")!;
+        const submit = createEvent.submit(form);
+
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
+    });
+
     // Access cmbFindMethod 2: the teacher's period in every group, sorted by the teacher
     it("finds the groups of a teacher with the teacher's periods", async () => {
         const calls = serve();
@@ -208,7 +356,7 @@ describe("Groups", () => {
         );
         await waitFor(() =>
             expect(rowCells(screen.getByRole("link", { name: "1001" }))).toEqual([
-                "1", "Delta Dan", "1001", "Math", "4-Four", "01.09.2026", "",
+                "1", "Delta Dan", "1001", "Math", "4-Four", "01.09.2026", "31.05.2027",
             ])
         );
         expect(screen.getByLabelText("ძებნა")).toHaveAttribute(

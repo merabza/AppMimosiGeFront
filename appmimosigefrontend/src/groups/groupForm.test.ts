@@ -242,6 +242,16 @@ describe("groupToForm and groupFormToRequest", () => {
         //the server writes the teacher contract's default scheme then
         expect(request.teachers[0].salarySchemaId).toBeNull();
     });
+
+    it("shows a missing note as an empty field and sends it back as null", () => {
+        const form = groupToForm({
+            ...group,
+            students: [{ ...group.students[0], note: null }],
+        });
+
+        expect(form.students[0].note).toBe("");
+        expect(groupFormToRequest(form).students[0].note).toBeNull();
+    });
 });
 
 describe("selectTeacherContract", () => {
@@ -332,5 +342,7 @@ describe("dayAfter", () => {
     it("is undefined without a date", () => {
         expect(dayAfter("")).toBeUndefined();
         expect(dayAfter("30.09.2026")).toBeUndefined();
+        expect(dayAfter("12026-09-30")).toBeUndefined();
+        expect(dayAfter("2026-09-301")).toBeUndefined();
     });
 });

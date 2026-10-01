@@ -165,6 +165,24 @@ describe("groupsApi", () => {
         expect(store.getState().alertState.alert.ApiLoad).toBeUndefined();
     });
 
+    it("writes the error of every failed change", async () => {
+        mockFetch((call) => ({
+            status: 400,
+            body: { title: `${call.method}Error`, detail: call.method, status: 400 },
+        }));
+        const store = createGroupsStore();
+
+        await store.dispatch(groupsApi.endpoints.createGroup.initiate(request));
+        await store.dispatch(groupsApi.endpoints.updateGroup.initiate({ grpId: 1, request }));
+        await store.dispatch(groupsApi.endpoints.deleteGroup.initiate(1));
+
+        expect(store.getState().alertState.alert.ApiMutation).toEqual([
+            { errorCode: "POSTError", errorMessage: "POST" },
+            { errorCode: "PUTError", errorMessage: "PUT" },
+            { errorCode: "DELETEError", errorMessage: "DELETE" },
+        ]);
+    });
+
     it("writes nothing into the alerts when the requests succeed", async () => {
         mockFetch((call) => ({
             status: 200,

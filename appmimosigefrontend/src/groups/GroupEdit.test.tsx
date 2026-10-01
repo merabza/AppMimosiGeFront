@@ -1,7 +1,9 @@
 //GroupEdit.test.tsx
 
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { Provider } from "react-redux";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import { createGroupsStore, renderGroupsOnRoute } from "../testUtils/groupsTestStore";
@@ -134,10 +136,36 @@ function serve(change: FetchReply = { status: 200, body: undefined }): FetchCall
     });
 }
 
+// POST, PUT and DELETE never answer: the page stays in its running state
+function servePendingChanges(): FetchCall[] {
+    return mockFetch((call) => {
+        if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+        if (call.url.includes("/studentcontracts")) return { status: 200, body: studentContracts };
+        if (call.method === "GET") return { status: 200, body: group };
+        return new Promise<FetchReply>(() => {});
+    });
+}
+
 function renderEditor(url: string, menu: MenuState = "withRight") {
     const path = url === "/editor" ? "/editor" : "/editor/:grpId";
     return renderGroupsOnRoute(<GroupEdit />, createGroupsStore(menu), path, url);
 }
+
+// the editor with a link to group 8: React Router keeps the mounted editor when only the group changes
+function renderEditorWithLink(url: string) {
+    return render(
+        <Provider store={createGroupsStore()}>
+            <MemoryRouter initialEntries={[url]}>
+                <Link to="/editor/8">group 8</Link>
+                <Routes>
+                    <Route path="/editor/:grpId" element={<GroupEdit />} />
+                </Routes>
+            </MemoryRouter>
+        </Provider>
+    );
+}
+
+const group8: IGroup = { ...group, grpId: 8, groupCode: "1002" };
 
 function changes(calls: FetchCall[]) {
     return calls.filter((c) => c.method !== "GET");
@@ -207,6 +235,65 @@ describe("GroupEdit", () => {
         expect(screen.getByLabelText("დაწყების დრო 1")).toHaveValue("17");
         expect(screen.getByLabelText("საათები 1")).toHaveValue(1.5);
         expect(screen.getByLabelText("ოთახი 1")).toHaveValue("2");
+        expect(screen.getByRole("button", { name: "შენახვა" })).toBeInTheDocument();
+    });
+
+    it("waits for the group before showing the form", async () => {
+        mockFetch((call) =>
+            call.url.includes("/formlookups")
+                ? { status: 200, body: lookups }
+                : new Promise<FetchReply>(() => {})
+        );
+
+        renderEditor("/editor/7");
+        await flush();
+
+        expect(screen.getByRole("status")).toBeInTheDocument();
+        expect(screen.queryByLabelText("ჯგუფის კოდი")).not.toBeInTheDocument();
+    });
+
+    // the old form is not shown under the new group while it loads, and unsaved changes do not move over
+    it("shows the other group when the editor switches to it", async () => {
+        let answerGroup8: (reply: FetchReply) => void = () => {};
+        mockFetch((call) => {
+            if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+            if (call.url.includes("/studentcontracts")) return { status: 200, body: studentContracts };
+            if (call.url.endsWith("/8"))
+                return new Promise<FetchReply>((resolve) => {
+                    answerGroup8 = resolve;
+                });
+            return { status: 200, body: group };
+        });
+        renderEditorWithLink("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        change("ჯგუფის კოდი", "1009");
+
+        fireEvent.click(screen.getByRole("link", { name: "group 8" }));
+        await flush();
+
+        expect(screen.getByRole("status")).toBeInTheDocument();
+        expect(screen.queryByLabelText("ჯგუფის კოდი")).not.toBeInTheDocument();
+        answerGroup8({ status: 200, body: group8 });
+        expect(await screen.findByLabelText("ჯგუფის კოდი")).toHaveValue("1002");
+        expect(screen.getByText("ჯგუფი 1002")).toBeInTheDocument();
+    });
+
+    it("forgets the save error of the group it switches from", async () => {
+        mockFetch((call) => {
+            if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+            if (call.url.includes("/studentcontracts")) return { status: 200, body: studentContracts };
+            if (call.method === "PUT") return conflict;
+            return { status: 200, body: call.url.endsWith("/8") ? group8 : group };
+        });
+        renderEditorWithLink("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        fireEvent.click(saveButton());
+        expect(await screen.findByText(/ჯგუფს უკვე აქვს გაკვეთილები/)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("link", { name: "group 8" }));
+
+        await waitFor(() => expect(screen.getByLabelText("ჯგუფის კოდი")).toHaveValue("1002"));
+        expect(screen.queryByText(/ჯგუფს უკვე აქვს გაკვეთილები/)).not.toBeInTheDocument();
     });
 
     // the contracts of the group's year are offered; one of another year keeps its own name
@@ -222,9 +309,10 @@ describe("GroupEdit", () => {
                     .map((o) => o.textContent)
             ).toEqual(["-- აირჩიეთ --", "Delta Dan / 6.002", "Gamma Gia / 6.001"])
         );
-        expect(calls.some((c) => c.url.endsWith("/groups/studentcontracts?academicYearId=11"))).toBe(
-            true
-        );
+        // nothing is asked before the group's year is known
+        expect(
+            calls.filter((c) => c.url.includes("/studentcontracts")).map((c) => c.url.split("/groups")[1])
+        ).toEqual(["/studentcontracts?academicYearId=11"]);
         expect(screen.getByLabelText("მოსწავლე 2")).toHaveValue("99");
         expect(
             within(screen.getByLabelText("მოსწავლე 2")).getByRole("option", {
@@ -261,6 +349,42 @@ describe("GroupEdit", () => {
         expect(screen.getByLabelText("4 კვირის გადასახადი 3")).toHaveValue(72);
         expect(screen.getByLabelText("საათის ღირებულება 3")).toHaveValue(6);
         expect(screen.getByLabelText("მოსწავლის დაწყება 3")).toHaveValue(todayDateInputValue());
+        expect(screen.getByRole("columnheader", { name: "4 კვირის გადასახადი" })).toBeInTheDocument();
+    });
+
+    it("keeps the tariff when the chosen contract has none for the group", async () => {
+        serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        fireEvent.click(tab(/მოსწავლეები/));
+        fireEvent.click(screen.getByRole("button", { name: /მოსწავლის დამატება/ }));
+        await waitFor(() =>
+            expect(within(screen.getByLabelText("მოსწავლე 3")).getAllByRole("option")).toHaveLength(3)
+        );
+
+        change("მოსწავლე 3", "20");
+
+        expect(screen.getByLabelText("მოსწავლე 3")).toHaveValue("20");
+        expect(screen.getByLabelText("4 კვირის გადასახადი 3")).toHaveValue(48);
+    });
+
+    it("removes only the chosen teacher and schedule rows", async () => {
+        serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+
+        fireEvent.click(screen.getByRole("button", { name: /მასწავლებლის დამატება/ }));
+        change("მასწავლებელი 2", "6");
+        fireEvent.click(screen.getAllByTitle("მასწავლებლის წაშლა")[0]);
+        fireEvent.click(tab(/განრიგი/));
+        fireEvent.click(screen.getByRole("button", { name: /განრიგის დამატება/ }));
+        change("კვირის დღე 2", "1");
+        fireEvent.click(screen.getAllByTitle("განრიგის სტრიქონის წაშლა")[0]);
+
+        expect(screen.getByLabelText("მასწავლებელი 1")).toHaveValue("6");
+        expect(screen.queryByLabelText("მასწავლებელი 2")).not.toBeInTheDocument();
+        expect(screen.getByLabelText("კვირის დღე 1")).toHaveValue("1");
+        expect(screen.queryByLabelText("კვირის დღე 2")).not.toBeInTheDocument();
     });
 
     // the recalculation of the contract details (part 06), when a field is left
@@ -277,9 +401,12 @@ describe("GroupEdit", () => {
         fireEvent.blur(screen.getByLabelText("4 კვირის გადასახადი 1"));
         expect(screen.getByLabelText("საათის ღირებულება 1")).toHaveValue(6);
 
+        // the coefficient is not part of the tariff: leaving it recalculates nothing
+        change("საათის ღირებულება 1", "5");
         change("საათის კოეფიციენტი 1", "2");
         fireEvent.blur(screen.getByLabelText("საათის კოეფიციენტი 1"));
         expect(screen.getByLabelText("4 კვირის გადასახადი 1")).toHaveValue(60);
+        expect(screen.getByLabelText("საათის კოეფიციენტი 1")).toHaveValue(2);
     });
 
     it("saves the changed group with all its rows and returns to the list", async () => {
@@ -337,11 +464,13 @@ describe("GroupEdit", () => {
         renderEditor("/editor/7");
         await screen.findByLabelText("ჯგუფის კოდი");
 
+        expect(screen.queryByText(/ჯგუფი არ შეინახება/)).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: /მასწავლებლის დამატება/ }));
         change("მასწავლებელი 2", "6");
         change("მასწავლებლის დაწყება 2", "2026-10-01");
 
         expect(screen.getByText(/ერთ დღეს ჯგუფს ორი მასწავლებელი ვერ ეყოლება/)).toBeInTheDocument();
+        expect(screen.getByText(/ჯგუფი არ შეინახება/)).toBeInTheDocument();
         expect(screen.getByLabelText("მასწავლებელი 1").closest("tr")).toHaveClass("table-danger");
         expect(screen.getByLabelText("მასწავლებელი 2").closest("tr")).toHaveClass("table-danger");
         fireEvent.click(tab(/განრიგი/));
@@ -353,6 +482,8 @@ describe("GroupEdit", () => {
 
         change("მასწავლებლის დასრულება 1", "2026-10-01");
         expect(screen.queryByText(/ერთ დღეს ჯგუფს ორი მასწავლებელი/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/ჯგუფი არ შეინახება/)).not.toBeInTheDocument();
+        expect(screen.getByLabelText("მასწავლებელი 1").closest("tr")).not.toHaveClass("table-danger");
         fireEvent.click(saveButton());
         await waitFor(() => expect(changes(calls)).toHaveLength(1));
     });
@@ -371,6 +502,9 @@ describe("GroupEdit", () => {
         change("განრიგის დაწყება 2", "2026-09-15");
 
         expect(screen.getByText(/ერთ კვირის დღეზე ჯგუფს ორი განრიგი ვერ ექნება/)).toBeInTheDocument();
+        expect(screen.getByText(/ჯგუფი არ შეინახება/)).toBeInTheDocument();
+        expect(screen.getByLabelText("კვირის დღე 1").closest("tr")).toHaveClass("table-danger");
+        expect(screen.getByLabelText("კვირის დღე 2").closest("tr")).toHaveClass("table-danger");
         fireEvent.click(tab(/მასწავლებლები/));
         fireEvent.click(saveButton());
         await flush();
@@ -379,11 +513,90 @@ describe("GroupEdit", () => {
 
         change("კვირის დღე 2", "1");
         expect(screen.queryByText(/ერთ კვირის დღეზე ჯგუფს ორი განრიგი/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/ჯგუფი არ შეინახება/)).not.toBeInTheDocument();
+        expect(screen.getByLabelText("კვირის დღე 1").closest("tr")).not.toHaveClass("table-danger");
+    });
+
+    it("saves a chosen scheme, the student's period and the lesson hours", async () => {
+        const calls = serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+
+        change("ხელფასის სქემა 1", "11");
+        change("მოსწავლის დაწყება 1", "2026-09-05");
+        change("მოსწავლის დასრულება 1", "2026-12-01");
+        change("საათები 1", "2");
+        change("განრიგის დაწყება 1", "2026-09-07");
+        fireEvent.click(saveButton());
+
+        expect(await screen.findByText("list page")).toBeInTheDocument();
+        expect(changes(calls)[0].body).toMatchObject({
+            teachers: [{ id: 100, teacherContractId: 5, salarySchemaId: 11 }],
+            students: [
+                { id: 200, startDate: "2026-09-05", endDate: "2026-12-01" },
+                { id: 201, startDate: "2026-09-01", endDate: "2026-10-01" },
+            ],
+            dayTimePlaces: [{ id: 300, hoursCount: 2, startDate: "2026-09-07" }],
+        });
+    });
+
+    // the fields take what the server accepts: money with 4 decimals, positive tariffs and hours, an end after
+    // the start
+    it("offers inputs with the limits of the server", async () => {
+        serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+
+        for (const [label, min] of [
+            ["4 კვირის საათები 1", "0.01"],
+            ["4 კვირის გადასახადი 1", "0.0001"],
+            ["საათის ღირებულება 1", "0.0001"],
+            ["საათის კოეფიციენტი 1", "0.01"],
+            ["საათები 1", "0.01"],
+        ]) {
+            expect(screen.getByLabelText(label)).toHaveAttribute("min", min);
+            expect(screen.getByLabelText(label)).toHaveAttribute("step", "any");
+        }
+        expect(screen.getByLabelText("მოსწავლის დასრულება 1")).toHaveAttribute("min", "2026-09-02");
+        expect(screen.getByLabelText("განრიგის დასრულება 1")).toHaveAttribute("min", "2026-09-02");
+        expect(screen.getByLabelText("შენიშვნა 1")).toHaveAttribute("maxLength", "255");
+        expect(screen.getByLabelText("ჯგუფის კოდი")).toHaveAttribute("maxLength", "5");
+    });
+
+    // a field outside the tabs is shown where it is; the open tab stays
+    it("focuses a missing group field without changing the tab", async () => {
+        const calls = serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        fireEvent.click(tab(/მოსწავლეები/));
+
+        change("ჯგუფის კოდი", "");
+        fireEvent.click(saveButton());
+        await flush();
+
+        expect(changes(calls)).toHaveLength(0);
+        expect(screen.getByLabelText("ჯგუფის კოდი")).toHaveFocus();
+        expect(tab(/მოსწავლეები/)).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("waits for the lookups before showing the form", async () => {
+        mockFetch((call) =>
+            call.url.includes("/formlookups")
+                ? new Promise<FetchReply>(() => {})
+                : { status: 200, body: group }
+        );
+
+        renderEditor("/editor/7");
+        await flush();
+
+        expect(screen.getByRole("status")).toBeInTheDocument();
+        expect(screen.queryByLabelText("ჯგუფის კოდი")).not.toBeInTheDocument();
     });
 
     // the form is noValidate: a missing field of a hidden tab opens that tab instead of failing silently
     it("opens the tab of a missing required field instead of saving", async () => {
         const calls = serve();
+        const report = vi.spyOn(HTMLSelectElement.prototype, "reportValidity");
         renderEditor("/editor/7");
         await screen.findByLabelText("ჯგუფის კოდი");
         fireEvent.click(tab(/მოსწავლეები/));
@@ -396,6 +609,146 @@ describe("GroupEdit", () => {
         expect(changes(calls)).toHaveLength(0);
         expect(tab(/მოსწავლეები/)).toHaveAttribute("aria-selected", "true");
         expect(screen.getByLabelText("მოსწავლე 3")).toHaveFocus();
+        // the browser shows its message at the field
+        expect(report).toHaveBeenCalledTimes(1);
+        expect(report.mock.contexts[0]).toBe(screen.getByLabelText("მოსწავლე 3"));
+        report.mockRestore();
+    });
+
+    // every save shows the field again, also when it is the same field as the last time
+    it("shows the missing field again on the next save", async () => {
+        serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        change("ჯგუფის კოდი", "");
+        fireEvent.click(saveButton());
+        await flush();
+        screen.getByLabelText("საგანი").focus();
+
+        fireEvent.click(saveButton());
+        await flush();
+
+        expect(screen.getByLabelText("ჯგუფის კოდი")).toHaveFocus();
+    });
+
+    it("disables saving while the save runs", async () => {
+        servePendingChanges();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        expect(saveButton()).toBeEnabled();
+        expect(saveButton().querySelector(".spinner-border")).toBeNull();
+
+        fireEvent.click(saveButton());
+
+        await waitFor(() => expect(saveButton()).toBeDisabled());
+        expect(saveButton().querySelector(".spinner-border")).not.toBeNull();
+    });
+
+    it("disables creating while the new group is saved", async () => {
+        servePendingChanges();
+        renderEditor("/editor");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        change("ჯგუფის კოდი", "1011");
+        change("საგანი", "7");
+        change("მოსწავლის სტატუსი", "10");
+
+        fireEvent.click(saveButton());
+
+        await waitFor(() => expect(saveButton()).toBeDisabled());
+        expect(saveButton().querySelector(".spinner-border")).not.toBeNull();
+    });
+
+    it("disables deleting while the delete runs", async () => {
+        servePendingChanges();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        const deleteButton = screen.getByRole("button", { name: "წაშლა" });
+        expect(deleteButton.querySelector(".spinner-border")).toBeNull();
+
+        fireEvent.click(deleteButton);
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(/ჯგუფი "1001"/)).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole("button", { name: "დიახ" }));
+
+        await waitFor(() => expect(deleteButton).toBeDisabled());
+        expect(deleteButton.querySelector(".spinner-border")).not.toBeNull();
+    });
+
+    it("shows only the error of the last save attempt", async () => {
+        let attempt = 0;
+        mockFetch((call) => {
+            if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+            if (call.url.includes("/studentcontracts")) return { status: 200, body: studentContracts };
+            if (call.method === "GET") return { status: 200, body: group };
+            attempt++;
+            return attempt === 1
+                ? { status: 409, body: { title: "FirstError", detail: "პირველი შეცდომა", status: 409 } }
+                : { status: 400, body: { title: "SecondError", detail: "მეორე შეცდომა", status: 400 } };
+        });
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+
+        fireEvent.click(saveButton());
+        expect(await screen.findByText(/პირველი შეცდომა/)).toBeInTheDocument();
+        fireEvent.click(saveButton());
+
+        expect(await screen.findByText(/მეორე შეცდომა/)).toBeInTheDocument();
+        expect(screen.queryByText(/პირველი შეცდომა/)).not.toBeInTheDocument();
+    });
+
+    // the question can be asked again after every answer
+    it("shows only the error of the last delete attempt", async () => {
+        let attempt = 0;
+        mockFetch((call) => {
+            if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+            if (call.url.includes("/studentcontracts")) return { status: 200, body: studentContracts };
+            if (call.method === "GET") return { status: 200, body: group };
+            attempt++;
+            return {
+                status: 409,
+                body: { title: `DeleteError${attempt}`, detail: `წაშლის შეცდომა ${attempt}`, status: 409 },
+            };
+        });
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        const confirmDelete = async () => {
+            fireEvent.click(screen.getByRole("button", { name: "წაშლა" }));
+            fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "დიახ" }));
+        };
+
+        await confirmDelete();
+        expect(await screen.findByText(/წაშლის შეცდომა 1/)).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        await confirmDelete();
+
+        expect(await screen.findByText(/წაშლის შეცდომა 2/)).toBeInTheDocument();
+        expect(screen.queryByText(/წაშლის შეცდომა 1/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the group when the delete is not confirmed", async () => {
+        const calls = serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+
+        fireEvent.click(screen.getByRole("button", { name: "წაშლა" }));
+        fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "არა" }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        fireEvent.click(screen.getByRole("button", { name: "წაშლა" }));
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument();
+        expect(changes(calls)).toHaveLength(0);
+    });
+
+    it("keeps the browser on the page when the form is submitted", async () => {
+        serve();
+        renderEditor("/editor/7");
+        const form = (await screen.findByLabelText("ჯგუფის კოდი")).closest("form")!;
+        const submit = createEvent.submit(form);
+
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
+        expect(await screen.findByText("list page")).toBeInTheDocument();
     });
 
     it("does not save an end that is not after the start", async () => {
@@ -422,6 +775,7 @@ describe("GroupEdit", () => {
         expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("11");
         expect(screen.getByLabelText("ჯგუფის ზომა")).toHaveValue("2");
         expect(tab(/მასწავლებლები \(0\)/)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "შექმნა" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "წაშლა" })).not.toBeInTheDocument();
         expect(screen.queryByLabelText("საჭიროებს გაკვეთილების დაზუსტებას")).not.toBeInTheDocument();
         fireEvent.change(code, { target: { value: "1011" } });
