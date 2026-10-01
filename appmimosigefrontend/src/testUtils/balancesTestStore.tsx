@@ -16,6 +16,7 @@ import userReducer, { setUser } from "../appcarcass/redux/slices/userSlice";
 import type { IAppUser } from "../appcarcass/redux/types/authenticationTypes";
 import { chargesAndPaymentsApi } from "../redux/api/chargesAndPaymentsApi";
 import { depositsApi } from "../redux/api/depositsApi";
+import { crmCallsApi } from "../redux/api/crmCallsApi";
 import type {
     IBalancesFormLookups,
     IBalancesRecount,
@@ -33,6 +34,8 @@ export function createBalancesStore(menu: MenuState = "withRight", appClaims?: s
         reducer: {
             [chargesAndPaymentsApi.reducerPath]: chargesAndPaymentsApi.reducer,
             [depositsApi.reducerPath]: depositsApi.reducer,
+            //the deposits page creates CRM calls
+            [crmCallsApi.reducerPath]: crmCallsApi.reducer,
             alertState: alertReducer,
             appParametersState: appParametersReducer,
             navMenuState: navMenuReducer,
@@ -44,7 +47,8 @@ export function createBalancesStore(menu: MenuState = "withRight", appClaims?: s
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware({ serializableCheck: false }).concat(
                 chargesAndPaymentsApi.middleware,
-                depositsApi.middleware
+                depositsApi.middleware,
+                crmCallsApi.middleware
             ),
     });
     store.dispatch(setUser({ token: "token", appClaims } as unknown as IAppUser));

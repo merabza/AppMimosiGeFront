@@ -24,6 +24,8 @@ import { formatAmount } from "../payments/paymentsListFilter";
 import { statementUrl } from "../chargesAndPayments/statementFilter";
 import { useCanRecountAllGroupsLessons } from "../lessonGenerator/lessonGeneration";
 import { useHasDepositsRight } from "./depositsMenu";
+import { useHasCrmCallsRight } from "../crmCalls/crmCallsMenu";
+import CrmCallDialog, { type ICrmCallDialogContract } from "../crmCalls/CrmCallDialog";
 import {
     allAcademicYears,
     filterFromSearchParams,
@@ -56,6 +58,9 @@ const filterButtons: { mode: DepositsFilterMode; caption: string }[] = [
 const Deposits: FC = () => {
     const hasRight = useHasDepositsRight();
     const canFullRecount = useCanRecountAllGroupsLessons();
+    //"ზარი" მხოლოდ CRM ზარების უფლებით ჩანს: ზარს CRM-ის endpoint-ები ინახავს
+    const canCall = useHasCrmCallsRight() === true;
+    const [callContract, setCallContract] = useState<ICrmCallDialogContract | null>(null);
     const { data: lookups, isLoading: lookupsLoading } =
         useGetDepositsFormLookupsQuery(undefined, { skip: !hasRight });
     const [recount, { data: recountResult }] = useRecountBalancesMutation();
@@ -68,7 +73,7 @@ const Deposits: FC = () => {
 
     const filter = useMemo(() => filterFromSearchParams(searchParams), [searchParams]);
     //სია გადაანგარიშების შემდეგ იტვირთება; მიმდინარე წელს ცნობარები იძლევა
-    const { data: deposits, isFetching } = useGetDepositsQuery(
+    const { data: deposits, isFetching, refetch } = useGetDepositsQuery(
         hasRight && recounted && lookups
             ? toDepositsRequest(filter, lookups.currentAcademicYearId)
             : skipToken
@@ -196,6 +201,18 @@ const Deposits: FC = () => {
                     dateTo={filter.dateTo}
                     totalBalance={deposits.totalBalance}
                     totalFourWeekFee={deposits.totalFourWeekFee}
+                    onCall={canCall ? setCallContract : undefined}
+                />
+            )}
+            {callContract && (
+                <CrmCallDialog
+                    contract={callContract}
+                    onClose={() => setCallContract(null)}
+                    onSaved={() => {
+                        setCallContract(null);
+                        //"უნდა გადაიხადოს" ბაზიდან იკითხება, გადაანგარიშება არ სჭირდება
+                        refetch();
+                    }}
                 />
             )}
         </div>
@@ -207,9 +224,17 @@ type DepositsTableProps = {
     dateTo: string;
     totalBalance: number;
     totalFourWeekFee: number;
+    //CRM ზარების უფლების გარეშე undefined: "ზარი" არ ჩანს
+    onCall?: (contract: ICrmCallDialogContract) => void;
 };
 
-const DepositsTable: FC<DepositsTableProps> = ({ rows, dateTo, totalBalance, totalFourWeekFee }) => {
+const DepositsTable: FC<DepositsTableProps> = ({
+    rows,
+    dateTo,
+    totalBalance,
+    totalFourWeekFee,
+    onCall,
+}) => {
     if (rows.length === 0) return <div>მონაცემები არ არის</div>;
     return (
         <Table striped bordered hover responsive size="sm">
@@ -257,7 +282,22 @@ const DepositsTable: FC<DepositsTableProps> = ({ rows, dateTo, totalBalance, tot
                             <Link to={statementUrl(row.studentContractId, row.academicYearId, dateTo)}>
                                 ამონაწერი
                             </Link>
-                            {/* ზარის შექმნა ამ კონტრაქტზე ნაწილ 13-ში (CRM) დაემატება */}
+                            {onCall && (
+                                <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="p-0 ms-2 align-baseline"
+                                    onClick={() =>
+                                        onCall({
+                                            studentContractId: row.studentContractId,
+                                            academicYearId: row.academicYearId,
+                                            name: `${row.studentName} / ${row.contractNumber}`,
+                                        })
+                                    }
+                                >
+                                    ზარი
+                                </Button>
+                            )}
                         </td>
                     </tr>
                 ))}

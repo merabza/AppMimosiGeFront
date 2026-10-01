@@ -17,6 +17,7 @@ import {
     renderBalancesOnRoute,
 } from "../testUtils/balancesTestStore";
 import type { IDeposits } from "../redux/types/balancesTypes";
+import { crmCallLookups } from "../testUtils/crmCallsTestStore";
 import { defaultDateTo } from "./depositsFilter";
 import Deposits from "./Deposits";
 
@@ -53,10 +54,19 @@ type Replies = {
     fullRecount?: () => FetchReply | Promise<FetchReply>;
     rows?: () => FetchReply | Promise<FetchReply>;
     lookups?: () => FetchReply | Promise<FetchReply>;
+    crmCreate?: () => FetchReply | Promise<FetchReply>;
 };
+
+const crmHistory = { allRowsCount: 0, offset: 0, rows: [] };
 
 function serve(replies: Replies = {}): FetchCall[] {
     return mockFetch((call) => {
+        //the call window: the CRM lookups, the contract's calls and the new call
+        if (call.url.includes("/crmcalls")) {
+            if (call.method === "POST") return replies.crmCreate?.() ?? { status: 200, body: 77 };
+            if (call.url.includes("/formlookups")) return { status: 200, body: crmCallLookups };
+            return { status: 200, body: crmHistory };
+        }
         if (call.url.endsWith("/deposits/recount"))
             return replies.recount?.() ?? { status: 200, body: recountResult };
         if (call.url.endsWith("/deposits/fullrecount"))
@@ -451,5 +461,109 @@ describe("Deposits", () => {
         renderPage();
 
         expect(await screen.findByText("ჩატვირთვის პრობლემა")).toBeInTheDocument();
+    });
+describe("a CRM call from a row", () => {
+        //the CRM calls right besides the deposits one
+        function renderWithCrmRight() {
+            const store = createBalancesStore();
+            store.dispatch(setNavMenu(mainMenu("deposits", "crmCalls")));
+            renderBalancesOnRoute(<Deposits />, store, "/deposits", "/deposits");
+            return store;
+        }
+
+        const callButton = (scId: number) =>
+            within(screen.getByTestId(`deposit-${scId}`)).getByRole("button", { name: "ზარი" });
+        const crmPosts = (calls: FetchCall[]) =>
+            calls.filter((c) => c.url.includes("/crmcalls") && c.method === "POST");
+
+        // the calls endpoints check their own menu right
+        it("is not offered without the CRM calls right", async () => {
+            serve();
+            renderPage();
+
+            await screen.findByTestId("deposit-10");
+            expect(screen.queryByRole("button", { name: "ზარი" })).not.toBeInTheDocument();
+        });
+
+        it("opens the call window on the row's contract", async () => {
+            serve();
+            renderWithCrmRight();
+            await screen.findByTestId("deposit-12");
+
+            fireEvent.click(callButton(12));
+
+            expect(await screen.findByText("ზარი: Gamma Gia / 5.001")).toBeInTheDocument();
+            expect(await screen.findByText("ამ კონტრაქტზე ზარი ჯერ არ ყოფილა")).toBeInTheDocument();
+        });
+
+        // the must pay date of the last call shows in the list: it is read again, without a recount
+        it("saves the call, closes the window and loads the rows again", async () => {
+            const calls = serve();
+            renderWithCrmRight();
+            await screen.findByTestId("deposit-10");
+            fireEvent.click(callButton(10));
+            await waitFor(() => expect(screen.getByLabelText("ზარის ტიპი")).toHaveValue("1"));
+            const rowsBefore = rowsRequests(calls).length;
+
+            fireEvent.change(screen.getByLabelText("შედეგი"), { target: { value: "3" } });
+            fireEvent.change(screen.getByLabelText("უნდა გადაიხადოს თარიღამდე"), {
+                target: { value: "2026-10-08" },
+            });
+            fireEvent.click(screen.getByRole("button", { name: /შენახვა/ }));
+
+            await waitFor(() => expect(rowsRequests(calls)).toHaveLength(rowsBefore + 1));
+            await waitFor(() => expect(screen.queryByText(/^ზარი: /)).not.toBeInTheDocument());
+            expect(crmPosts(calls)).toHaveLength(1);
+            expect(crmPosts(calls)[0].body).toMatchObject({
+                studentContractId: 10,
+                callTypeId: 1,
+                answerTypeId: 3,
+                mustPayDate: "2026-10-08",
+            });
+            expect(calls.filter((c) => c.url.endsWith("/deposits/recount"))).toHaveLength(1);
+        });
+
+        it("keeps the window open and the rows when the call is refused", async () => {
+            const calls = serve({
+                crmCreate: () => ({
+                    status: 400,
+                    body: { title: "CallTypeNotFound", detail: "no type", status: 400 },
+                }),
+            });
+            renderWithCrmRight();
+            await screen.findByTestId("deposit-10");
+            fireEvent.click(callButton(10));
+            await waitFor(() => expect(screen.getByLabelText("ზარის ტიპი")).toHaveValue("1"));
+            const rowsBefore = rowsRequests(calls).length;
+
+            fireEvent.change(screen.getByLabelText("შედეგი"), { target: { value: "3" } });
+            fireEvent.click(screen.getByRole("button", { name: /შენახვა/ }));
+
+            const dialog = await screen.findByRole("dialog");
+            expect(await within(dialog).findByText("no type")).toBeInTheDocument();
+            expect(within(dialog).getByText("ზარი: Alpha Ann / 6.001")).toBeInTheDocument();
+            expect(rowsRequests(calls)).toHaveLength(rowsBefore);
+
+            //the refusal belongs to the window: it does not stay on the page
+            fireEvent.click(within(dialog).getByRole("button", { name: /დახურვა/ }));
+            await waitFor(() => expect(screen.queryByText("no type")).not.toBeInTheDocument());
+        });
+
+        it("closes the window without saving or loading", async () => {
+            const calls = serve();
+            renderWithCrmRight();
+            await screen.findByTestId("deposit-10");
+            fireEvent.click(callButton(10));
+            await screen.findByText("ზარი: Alpha Ann / 6.001");
+            const rowsBefore = rowsRequests(calls).length;
+
+            fireEvent.click(screen.getByRole("button", { name: /დახურვა/ }));
+
+            await waitFor(() =>
+                expect(screen.queryByText("ზარი: Alpha Ann / 6.001")).not.toBeInTheDocument()
+            );
+            expect(crmPosts(calls)).toHaveLength(0);
+            expect(rowsRequests(calls)).toHaveLength(rowsBefore);
+        });
     });
 });
