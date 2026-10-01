@@ -7,6 +7,8 @@ import { EAlertKind } from "../appcarcass/redux/slices/alertSlice";
 import { mockFetch, testBaseUrl, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import { createGroupsStore, renderGroupsOnRoute } from "../testUtils/groupsTestStore";
 import { changedGroup, generation, groupGeneration } from "../testUtils/lessonGeneratorTestData";
+import { setNavMenu } from "../appcarcass/redux/slices/navMenuSlice";
+import { mainMenu } from "../testUtils/studentContractsTestStore";
 import GroupLessonsGenerator from "./GroupLessonsGenerator";
 
 const generated = generation([changedGroup]);
@@ -166,5 +168,59 @@ describe("GroupLessonsGenerator", () => {
             "href",
             "/lessonGeneratorLog?grpId=7"
         );
+    });
+
+    it("without the lessons right has no journal link", () => {
+        renderGenerator();
+
+        expect(screen.queryByRole("link", { name: "გაკვეთილების ჟურნალი" })).not.toBeInTheDocument();
+    });
+
+    describe("with the lessons right", () => {
+        function renderWithLessonsRight() {
+            const store = createGroupsStore();
+            store.dispatch(setNavMenu(mainMenu("groups", "lessons")));
+            return renderGroupsOnRoute(
+                <GroupLessonsGenerator grpId={7} hasUnsavedChanges={false} />,
+                store,
+                "/editor",
+                "/editor"
+            );
+        }
+
+        // Access "ამ ჯგუფის გაკვეთილები" opened the lessons of the group
+        it("links to all lessons of the group in the journal", () => {
+            renderWithLessonsRight();
+
+            expect(screen.getByRole("link", { name: "გაკვეთილების ჟურნალი" })).toHaveAttribute(
+                "href",
+                "/lessons?grpId=7&dateFrom=&dateTo="
+            );
+        });
+
+        // Access "ბოლო გაკვეთილი" opened the lesson form
+        it("opens the journal of the last lesson", async () => {
+            mockFetch(() => ({
+                status: 200,
+                body: { lessonId: 4165, lessonDt: "2026-09-28T15:00:00", generation: generated },
+            }));
+            renderWithLessonsRight();
+
+            fireEvent.click(lastLessonButton());
+
+            expect(await screen.findByText("lesson page")).toBeInTheDocument();
+        });
+
+        it("shows the result when the group had no lesson day yet", async () => {
+            mockFetch(() => ({
+                status: 200,
+                body: { lessonId: null, lessonDt: null, generation: generation([]) },
+            }));
+            renderWithLessonsRight();
+
+            fireEvent.click(lastLessonButton());
+
+            expect(await screen.findByText("ჯგუფს დღემდე გაკვეთილის დღე არ ჰქონია")).toBeInTheDocument();
+        });
     });
 });

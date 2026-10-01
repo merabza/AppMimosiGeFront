@@ -26,6 +26,7 @@ import { studentContractsApi } from "./api/studentContractsApi";
 import { teacherContractsApi } from "./api/teacherContractsApi";
 import { groupsApi } from "./api/groupsApi";
 import { lessonGeneratorApi } from "./api/lessonGeneratorApi";
+import { lessonsApi } from "./api/lessonsApi";
 
 export const store = configureStore({
     reducer: {
@@ -40,6 +41,7 @@ export const store = configureStore({
         [teacherContractsApi.reducerPath]: teacherContractsApi.reducer,
         [groupsApi.reducerPath]: groupsApi.reducer,
         [lessonGeneratorApi.reducerPath]: lessonGeneratorApi.reducer,
+        [lessonsApi.reducerPath]: lessonsApi.reducer,
 
         //states - carcass
         alertState: alertReducer,
@@ -66,6 +68,7 @@ export const store = configureStore({
             teacherContractsApi.middleware,
             groupsApi.middleware,
             lessonGeneratorApi.middleware,
+            lessonsApi.middleware,
         ]),
 });
 

@@ -2,7 +2,7 @@
 
 import { useState, type FC } from "react";
 import { Alert, Button, Spinner } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../appcarcass/redux/hooks";
 import { clearAlert, EAlertKind } from "../appcarcass/redux/slices/alertSlice";
 import {
@@ -16,6 +16,11 @@ import type {
 import { formatDateTime } from "../studentContracts/dateFormat";
 import LessonsGenerationResult from "./LessonsGenerationResult";
 import { lessonGeneratorLogRoute } from "./lessonGeneration";
+import {
+    groupLessonsUrl,
+    lessonEditUrl,
+    useHasLessonsRight,
+} from "../lessons/lessonsMenu";
 
 type GroupLessonsGeneratorProps = {
     grpId: number;
@@ -29,12 +34,15 @@ interface IResult {
 }
 
 //Access-ის FrmGroups-ის ღილაკები "ამ ჯგუფის გაკვეთილები" და "ამ ჯგუფის ბოლო გაკვეთილი" და მათი შედეგი.
-//შეცდომა ჯგუფის ფორმის AlertMessages-ში ჩანს
+//შეცდომა ჯგუფის ფორმის AlertMessages-ში ჩანს. გაკვეთილების მენიუს უფლებით "ბოლო გაკვეთილი" Access-ივით
+//პირდაპირ გაკვეთილის ჟურნალს ხსნის და ჩანს ჯგუფის გაკვეთილების სიის ბმული
 const GroupLessonsGenerator: FC<GroupLessonsGeneratorProps> = ({
     grpId,
     hasUnsavedChanges,
 }) => {
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
+    const hasLessonsRight = useHasLessonsRight();
     const [generateLessons, { isLoading: generating }] =
         useGenerateGroupLessonsMutation();
     const [generateLastLesson, { isLoading: generatingLastLesson }] =
@@ -57,7 +65,9 @@ const GroupLessonsGenerator: FC<GroupLessonsGeneratorProps> = ({
         setResult(null);
         try {
             const lastLesson = await generateLastLesson(grpId).unwrap();
-            setResult({ generation: lastLesson.generation, lastLesson });
+            if (hasLessonsRight && lastLesson.lessonId !== null)
+                navigate(lessonEditUrl(lastLesson.lessonId));
+            else setResult({ generation: lastLesson.generation, lastLesson });
         } catch {
             //შეცდომა უკვე ჩაიწერა ApiMutation-ში
         }
@@ -95,6 +105,11 @@ const GroupLessonsGenerator: FC<GroupLessonsGeneratorProps> = ({
                 <Link to={`/${lessonGeneratorLogRoute}?grpId=${grpId}`}>
                     გენერატორის ლოგი
                 </Link>
+                {hasLessonsRight && (
+                    <Link className="ms-2" to={groupLessonsUrl(grpId)}>
+                        გაკვეთილების ჟურნალი
+                    </Link>
+                )}
             </div>
             {result?.lastLesson && (
                 <Alert variant="success">

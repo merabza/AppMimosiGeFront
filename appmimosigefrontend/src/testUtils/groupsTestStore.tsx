@@ -76,6 +76,10 @@ export function renderGroupsOnRoute(
                         path="/lessonGeneratorLog"
                         element={<div>log page</div>}
                     />
+                    <Route
+                        path="/lessonEdit/:lessonId"
+                        element={<div>lesson page</div>}
+                    />
                 </Routes>
             </MemoryRouter>
         </Provider>
