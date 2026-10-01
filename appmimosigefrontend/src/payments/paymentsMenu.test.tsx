@@ -4,6 +4,7 @@ import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { Provider } from "react-redux";
 import { describe, expect, it } from "vitest";
+import { setUser } from "../appcarcass/redux/slices/userSlice";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import { createPaymentsStore } from "../testUtils/paymentsTestStore";
 import {
@@ -58,6 +59,16 @@ describe("useCanCheckPayments", () => {
     // a stored user from before the claims were part of the login answer
     it("is false for a user without the claims list", () => {
         expect(renderWith(useCanCheckPayments, "withRight")).toBe(false);
+    });
+
+    it("is false without a signed-in user", () => {
+        const store = createPaymentsStore("withRight", ["CheckPayments"]);
+        store.dispatch(setUser(null));
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <Provider store={store}>{children}</Provider>
+        );
+
+        expect(renderHook(useCanCheckPayments, { wrapper }).result.current).toBe(false);
     });
 });
 

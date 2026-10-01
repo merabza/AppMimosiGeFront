@@ -1,11 +1,12 @@
 //PaymentEdit.test.tsx
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
+import { setAlertApiMutationError } from "../appcarcass/redux/slices/alertSlice";
 import LocationProbe from "../testUtils/LocationProbe";
 import {
     createPaymentsStore,
@@ -364,6 +365,215 @@ describe("PaymentEdit", () => {
             renderEditor("/paymentEdit", "withRight", ["CheckPayments"]);
 
             expect(await screen.findByLabelText("შემოწმებულია")).not.toBeChecked();
+        });
+    });
+
+    describe("while working", () => {
+        // the change replies in turn; a missing one never arrives
+        function serveChanges(...replies: FetchReply[]) {
+            let next = 0;
+            return serve(paymentData(), () =>
+                next < replies.length ? replies[next++] : new Promise<FetchReply>(() => {})
+            );
+        }
+
+        const refused = {
+            status: 400,
+            body: { title: "AmountMustNotBeZero", detail: "refused", status: 400 },
+        };
+
+        const button = (name: RegExp) => screen.getByRole("button", { name });
+
+        async function openPayment() {
+            renderEditor("/paymentEdit/5");
+            await waitFor(() => expect(field("თანხა")).toHaveValue(300));
+        }
+
+        it("loads no payment for a new one", async () => {
+            const calls = serve();
+            renderEditor("/paymentEdit");
+
+            await screen.findByText("ახალი გადახდა");
+            expect(calls.some((c) => /\/payments\/\d+$/.test(c.url))).toBe(false);
+        });
+
+        // an opened payment shows its contract before the year's contracts arrive
+        it("shows the saved contract name while the year's contracts load", async () => {
+            mockFetch((call) => {
+                if (call.url.includes("/formlookups")) return { status: 200, body: paymentLookups };
+                if (call.url.includes("/studentcontracts")) return new Promise<FetchReply>(() => {});
+                return { status: 200, body: paymentData({ studentContractName: "Alpha Ann 6.001 (saved)" }) };
+            });
+            renderEditor("/paymentEdit/5");
+
+            await waitFor(() => expect(studentInput()).toHaveValue("Alpha Ann 6.001 (saved)"));
+        });
+
+        it("asks again after the deletion was declined", async () => {
+            serveChanges();
+            await openPayment();
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "არა" }));
+            await waitFor(() => expect(screen.queryByRole("button", { name: "არა" })).not.toBeInTheDocument());
+            fireEvent.click(button(/წაშლა/));
+
+            expect(await screen.findByRole("button", { name: "არა" })).toBeInTheDocument();
+        });
+
+        it("asks again after a refused deletion", async () => {
+            serveChanges(refused);
+            await openPayment();
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+            await screen.findByText("refused");
+            fireEvent.click(button(/წაშლა/));
+
+            expect(await screen.findByRole("button", { name: "დიახ" })).toBeInTheDocument();
+        });
+
+        it("clears the old error when saving again", async () => {
+            serveChanges(refused);
+            await openPayment();
+            fireEvent.click(button(/შენახვა/));
+            await screen.findByText("refused");
+
+            fireEvent.click(button(/შენახვა/));
+
+            await waitFor(() => expect(button(/შენახვა/)).toBeDisabled());
+            expect(screen.queryByText("refused")).not.toBeInTheDocument();
+        });
+
+        it("clears the old error when deleting again", async () => {
+            serveChanges(refused);
+            await openPayment();
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+            await screen.findByText("refused");
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+
+            await waitFor(() => expect(button(/წაშლა/)).toBeDisabled());
+            expect(screen.queryByText("refused")).not.toBeInTheDocument();
+        });
+
+        it("shows the spinner only on the save button while saving", async () => {
+            serveChanges();
+            await openPayment();
+            expect(button(/შენახვა/).querySelector(".spinner-border")).toBeNull();
+
+            fireEvent.click(button(/შენახვა/));
+
+            await waitFor(() => expect(button(/შენახვა/)).toBeDisabled());
+            expect(button(/შენახვა/).querySelector(".spinner-border")).not.toBeNull();
+            expect(button(/წაშლა/).querySelector(".spinner-border")).toBeNull();
+            expect(button(/წაშლა/)).not.toBeDisabled();
+        });
+
+        it("shows the spinner only on the delete button while deleting", async () => {
+            serveChanges();
+            await openPayment();
+            expect(button(/წაშლა/).querySelector(".spinner-border")).toBeNull();
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+
+            await waitFor(() => expect(button(/წაშლა/)).toBeDisabled());
+            expect(button(/წაშლა/).querySelector(".spinner-border")).not.toBeNull();
+            expect(button(/შენახვა/).querySelector(".spinner-border")).toBeNull();
+            expect(button(/შენახვა/)).not.toBeDisabled();
+        });
+
+        it("clears the change errors when another payment is opened", async () => {
+            mockFetch((call) => {
+                if (call.method === "PUT") return refused;
+                if (call.url.includes("/formlookups")) return { status: 200, body: paymentLookups };
+                if (call.url.includes("/studentcontracts"))
+                    return { status: 200, body: yearContracts[requestedYear(call.url)] ?? [] };
+                if (call.url.endsWith("/6")) return { status: 200, body: paymentData({ id: 6, amount: 40 }) };
+                return { status: 200, body: paymentData() };
+            });
+            render(
+                <Provider store={createPaymentsStore()}>
+                    <MemoryRouter initialEntries={["/paymentEdit/5"]}>
+                        <Routes>
+                            <Route path="/paymentEdit/:paymentId" element={<PaymentEdit />} />
+                        </Routes>
+                        <Link to="/paymentEdit/6">next</Link>
+                    </MemoryRouter>
+                </Provider>
+            );
+            await waitFor(() => expect(field("თანხა")).toHaveValue(300));
+            fireEvent.click(button(/შენახვა/));
+            await screen.findByText("refused");
+
+            fireEvent.click(screen.getByText("next"));
+
+            //payment 6 is shown with its form (and its alerts) again
+            await waitFor(() => expect(field("თანხა")).toHaveValue(40));
+            expect(screen.queryByText("refused")).not.toBeInTheDocument();
+        });
+
+        // an error left by another page is not shown on the payment
+        it("clears the change errors left from before", async () => {
+            serve();
+            const store = createPaymentsStore();
+            store.dispatch(setAlertApiMutationError([{ errorCode: "Old", errorMessage: "old error" }]));
+            renderPaymentsOnRoute(<PaymentEdit />, store, "/paymentEdit/:paymentId", "/paymentEdit/5");
+
+            await waitFor(() => expect(field("თანხა")).toHaveValue(300));
+            expect(screen.queryByText("old error")).not.toBeInTheDocument();
+        });
+
+        it("starts without the delete confirmation", async () => {
+            serve();
+            await openPayment();
+
+            expect(screen.queryByRole("button", { name: "დიახ" })).not.toBeInTheDocument();
+        });
+
+        it("loads no contracts for a new payment when there is no current academic year", async () => {
+            const calls = mockFetch((call) => {
+                if (call.url.includes("/formlookups"))
+                    return { status: 200, body: { ...paymentLookups, currentAcademicYearId: null } };
+                return { status: 200, body: [] };
+            });
+            renderEditor("/paymentEdit");
+
+            await screen.findByText("ახალი გადახდა");
+            expect(calls.some((c) => c.url.includes("/studentcontracts"))).toBe(false);
+        });
+
+        // the student of the other year is gone, so a student of the new year has to be chosen first
+        it("is not sent after the year changed until a student is chosen", async () => {
+            const calls = serve();
+            renderEditor("/paymentEdit");
+            await screen.findByText("ახალი გადახდა");
+            await chooseStudent("Alpha Ann 6.001");
+            fireEvent.change(field("თანხა"), { target: { value: "50" } });
+            fireEvent.change(field("ბანკი / გადახდის სახე"), { target: { value: "4" } });
+
+            fireEvent.change(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი"), {
+                target: { value: "10" },
+            });
+            fireEvent.click(screen.getByRole("button", { name: /შექმნა/ }));
+
+            expect(changes(calls)).toHaveLength(0);
+            expect(studentInput().validationMessage).toBe("აირჩიეთ მოსწავლის კონტრაქტი");
+        });
+
+        // the page sends the payment itself; the browser must not submit the form
+        it("keeps the browser from submitting the form", async () => {
+            serveChanges();
+            await openPayment();
+            const form = button(/შენახვა/).closest("form")!;
+
+            const submit = createEvent.submit(form);
+            fireEvent(form, submit);
+
+            expect(submit.defaultPrevented).toBe(true);
         });
     });
 

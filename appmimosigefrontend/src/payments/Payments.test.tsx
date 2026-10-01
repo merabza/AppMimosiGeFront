@@ -1,7 +1,9 @@
 //Payments.test.tsx
 
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { setUser } from "../appcarcass/redux/slices/userSlice";
+import type { IAppUser } from "../appcarcass/redux/types/authenticationTypes";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import { decodeFilterSortRequest, type MenuState } from "../testUtils/studentContractsTestStore";
 import {
@@ -130,9 +132,46 @@ describe("Payments", () => {
         serve(() => ({ status: 200, body: { ...rows, rows: [{ ...paymentRow, checked: false }] } }));
         renderList("/payments", "withRight", ["CheckPayments"]);
 
+        const link = await screen.findByRole("link", { name: "Alpha Ann 6.001" });
+        const cells = within(link.closest("tr")!).getAllByRole("cell").map((c) => c.textContent);
+        expect(cells.slice(1)).toEqual(["Alpha Ann 6.001", "15.09.2026", "300.00", "N 15", "Zeta Bank", ""]);
+    });
+
+    it("titles the columns as the Access form does", async () => {
+        serve();
+        renderList("/payments", "withRight", ["CheckPayments"]);
+
+        const link = await screen.findByRole("link", { name: "Alpha Ann 6.001" });
+        const headers = within(link.closest("table")!)
+            .getAllByRole("columnheader")
+            .map((h) => h.textContent?.trim());
+        expect(headers).toEqual(["N", "მოსწავლე", "გადახდის თარიღი", "თანხა", "დოკუმენტი", "ბანკი", "შემოწმებულია"]);
+    });
+
+    // a new sign-in with the special right shows the column without leaving the page
+    it("shows the checked column once the special right arrives", async () => {
+        serve();
+        const store = renderList();
         await screen.findByText("15.09.2026");
-        expect(screen.getByText("შემოწმებულია")).toBeInTheDocument();
-        expect(screen.queryByText("✓")).not.toBeInTheDocument();
+        expect(screen.queryByText("შემოწმებულია")).not.toBeInTheDocument();
+
+        act(() => {
+            store.dispatch(setUser({ token: "token", appClaims: ["CheckPayments"] } as unknown as IAppUser));
+        });
+
+        expect(await screen.findByText("შემოწმებულია")).toBeInTheDocument();
+    });
+
+    // the list follows the filter at once; the browser must not submit the filter form
+    it("keeps the browser from submitting the filter", async () => {
+        serve();
+        renderList();
+        const form = (await screen.findByLabelText("ბანკი")).closest("form")!;
+
+        const submit = createEvent.submit(form);
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
     });
 
     // returning from the payment form: the filter is in the address
@@ -267,6 +306,58 @@ describe("Payments", () => {
         );
         //the filter stays
         expect(filterValue(calls, "dateFrom")).toBe(currentMonthToDate().dateFrom);
+    });
+
+    // a range turned around after the rows were shown: the old rows and their sum must not stay
+    it("hides the shown rows and the sum when the range becomes reversed", async () => {
+        serve();
+        renderList();
+        await screen.findByText("15.09.2026");
+        expect(screen.getByTestId("paymentsTotal")).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText("თარიღიდან"), { target: { value: "2026-12-31" } });
+
+        expect(await screen.findByText("დაწყების თარიღი დასრულების თარიღზე გვიან არის")).toBeInTheDocument();
+        expect(screen.queryByText("15.09.2026")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("paymentsTotal")).not.toBeInTheDocument();
+    });
+
+    // the filter replaces the address, so "back" leaves the list instead of stepping through the filters
+    it("replaces the history entry when the filter changes", async () => {
+        serve();
+        renderPaymentsOnRoute(<Payments />, createPaymentsStore(), "/payments", "/paymentEdit", "/payments");
+        await screen.findByText("15.09.2026");
+
+        fireEvent.change(screen.getByLabelText("ბანკი"), { target: { value: "4" } });
+        await waitFor(() => expect(location()).toContain("bankAccountId=4"));
+        fireEvent.click(screen.getByRole("button", { name: "test back" }));
+
+        await waitFor(() => expect(location()).toBe("/paymentEdit"));
+    });
+
+    it("loads no contracts when there is no current academic year", async () => {
+        const calls = mockFetch((call) => {
+            if (call.url.includes("/formlookups"))
+                return { status: 200, body: { ...paymentLookups, currentAcademicYearId: null } };
+            if (call.url.includes("/studentcontracts")) return { status: 200, body: [] };
+            return { status: 200, body: rows };
+        });
+        renderList();
+
+        await screen.findByText("15.09.2026");
+        expect(calls.some((c) => c.url.includes("/studentcontracts"))).toBe(false);
+    });
+
+    it("waits while the lookups load", async () => {
+        mockFetch((call) =>
+            call.url.includes("/formlookups")
+                ? new Promise<FetchReply>(() => {})
+                : { status: 200, body: rows }
+        );
+        renderList();
+
+        expect(await screen.findByText("მიმდინარეობს ჩატვირთვა...")).toBeInTheDocument();
+        expect(screen.queryByText("ჩატვირთვის პრობლემა")).not.toBeInTheDocument();
     });
 
     it("tells a role without the right and loads nothing", async () => {

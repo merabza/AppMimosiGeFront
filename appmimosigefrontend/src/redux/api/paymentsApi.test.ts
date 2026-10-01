@@ -161,6 +161,34 @@ describe("paymentsApi", () => {
         expect(store.getState().alertState.alert.ApiLoad).toBeUndefined();
     });
 
+    // the alerts keep an error code once, so each change is checked on its own
+    it.each([
+        [
+            "create",
+            (store: ReturnType<typeof createPaymentsStore>) =>
+                store.dispatch(paymentsApi.endpoints.createPayment.initiate(request)),
+        ],
+        [
+            "update",
+            (store: ReturnType<typeof createPaymentsStore>) =>
+                store.dispatch(paymentsApi.endpoints.updatePayment.initiate({ paymentId: 1, request })),
+        ],
+        [
+            "delete",
+            (store: ReturnType<typeof createPaymentsStore>) =>
+                store.dispatch(paymentsApi.endpoints.deletePayment.initiate(1)),
+        ],
+    ])("writes a failed %s into the ApiMutation alerts", async (_name, change) => {
+        mockFetch(() => serverError);
+        const store = createPaymentsStore();
+
+        await change(store);
+
+        expect(store.getState().alertState.alert.ApiMutation).toEqual([
+            { errorCode: "PaymentIsChecked", errorMessage: "checked" },
+        ]);
+    });
+
     it("writes nothing into the alerts when the requests succeed", async () => {
         mockFetch((call) => ({
             status: 200,

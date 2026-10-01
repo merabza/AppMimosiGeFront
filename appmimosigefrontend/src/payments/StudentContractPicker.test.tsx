@@ -96,6 +96,45 @@ describe("StudentContractPicker", () => {
         ).toEqual(["2025-2026", "2026-2027"]);
     });
 
+    // the browser's own suggestions would cover the list of contracts
+    it("asks for a name or a number without the browser's suggestions", () => {
+        serve();
+        renderPicker();
+
+        expect(input()).toHaveAttribute("placeholder", "გვარი სახელი ან კონტრაქტის ნომერი");
+        expect(input()).toHaveAttribute("autocomplete", "off");
+    });
+
+    it("starts every search with an empty text", async () => {
+        serve();
+        renderPicker();
+        await openList();
+        fireEvent.change(input(), { target: { value: "beta" } });
+        vi.useFakeTimers();
+        try {
+            fireEvent.blur(input());
+            act(() => vi.advanceTimersByTime(200));
+        } finally {
+            vi.useRealTimers();
+        }
+
+        fireEvent.focus(input());
+
+        expect(input()).toHaveValue("");
+        expect(options()).toHaveLength(3);
+    });
+
+    // the choice is made on mouse down, before the input loses the focus
+    it("keeps the focus in the input when a contract is clicked", async () => {
+        serve();
+        renderPicker();
+        await openList();
+
+        const notCancelled = fireEvent.mouseDown(screen.getByText("Beta Bob 6.002"));
+
+        expect(notCancelled).toBe(false);
+    });
+
     it("lists every contract of the year when the search starts", async () => {
         serve();
         renderPicker();
@@ -104,6 +143,7 @@ describe("StudentContractPicker", () => {
 
         expect(options()).toEqual(["Alpha Ann 6.001", "Beta Bob 6.002", "Gamma Gia 6.003"]);
         expect(input()).toHaveValue("");
+        expect(screen.queryByText("ვერ მოიძებნა")).not.toBeInTheDocument();
     });
 
     it("narrows the list by the typed words and picks a contract", async () => {
@@ -232,6 +272,13 @@ describe("StudentContractPicker", () => {
         expect(input()).toHaveValue("Alpha Ann 6.001 (saved)");
     });
 
+    it("shows no name for a chosen contract while the contracts load without a given name", () => {
+        serve(() => new Promise<FetchReply>(() => {}));
+        renderPicker({ contract: "10" });
+
+        expect(input()).toHaveValue("");
+    });
+
     it("shows no name when no contract is chosen, even with a given name", () => {
         serve();
         renderPicker({ contractName: "Alpha Ann 6.001" });
@@ -302,8 +349,10 @@ describe("StudentContractPicker", () => {
         it("clears the chosen contract", async () => {
             serve();
             renderPicker({ contract: "10" });
+            const clear = await screen.findByTitle("მოსწავლის ფილტრის მოხსნა");
+            expect(clear).toHaveTextContent("×");
 
-            fireEvent.click(await screen.findByTitle("მოსწავლის ფილტრის მოხსნა"));
+            fireEvent.click(clear);
 
             expect(screen.getByTestId("contract").textContent).toBe("");
             expect(screen.queryByTitle("მოსწავლის ფილტრის მოხსნა")).not.toBeInTheDocument();

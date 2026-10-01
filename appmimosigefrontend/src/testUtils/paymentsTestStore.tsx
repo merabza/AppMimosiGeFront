@@ -21,7 +21,7 @@ import type {
     IPaymentRow,
 } from "../redux/types/paymentsTypes";
 import type { ILookupItem } from "../redux/types/studentContractsTypes";
-import LocationProbe from "./LocationProbe";
+import LocationProbe, { BackButton } from "./LocationProbe";
 import { mainMenu, type MenuState } from "./studentContractsTestStore";
 import { testBaseUrl } from "./testStore";
 
@@ -71,6 +71,7 @@ export function renderPaymentsOnRoute(
                     <Route path="/paymentEdit" element={<div>new page</div>} />
                 </Routes>
                 <LocationProbe />
+                <BackButton />
             </MemoryRouter>
         </Provider>
     );
