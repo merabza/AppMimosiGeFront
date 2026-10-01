@@ -77,6 +77,8 @@ import GroupEdit from "./groups/GroupEdit";
 import LessonGeneratorLog from "./lessonGenerator/LessonGeneratorLog";
 import Lessons from "./lessons/Lessons";
 import LessonEdit from "./lessons/LessonEdit";
+import Payments from "./payments/Payments";
+import PaymentEdit from "./payments/PaymentEdit";
 
 library.add(
     faCheckSquare,
@@ -214,6 +216,12 @@ const App: FC = () => {
                                 path="lessonEdit/:lessonId"
                                 element={<LessonEdit />}
                             />
+                            <Route path="payments" element={<Payments />} />
+                            <Route
+                                path="paymentEdit/:paymentId"
+                                element={<PaymentEdit />}
+                            />
+                            <Route path="paymentEdit" element={<PaymentEdit />} />
 
                             {/* Project AppRoutes finish */}
 
