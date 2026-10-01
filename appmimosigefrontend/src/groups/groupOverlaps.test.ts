@@ -1,15 +1,32 @@
 //groupOverlaps.test.ts
 
 import { describe, expect, it } from "vitest";
-import type { IDayTimePlaceFormRow, ITeacherFormRow } from "./groupForm";
+import type { IDayTimePlaceFormRow, IStudentFormRow, ITeacherFormRow } from "./groupForm";
 import {
     overlappingDayTimePlaceKeys,
+    overlappingStudentKeys,
     overlappingTeacherKeys,
     periodsOverlap,
 } from "./groupOverlaps";
 
 function teacher(key: number, startDate: string, endDate = ""): ITeacherFormRow {
     return { key, id: 0, teacherContractId: "5", salarySchemaId: "8", startDate, endDate };
+}
+
+function student(key: number, studentContractId: string, startDate: string, endDate = ""): IStudentFormRow {
+    return {
+        key,
+        id: 0,
+        studentContractId,
+        studentContractName: "",
+        fourWeekHours: "8",
+        fourWeekFee: "48",
+        oneHourFee: "6",
+        hoursCoefficient: "1",
+        startDate,
+        endDate,
+        note: "",
+    };
 }
 
 function dayTimePlace(
@@ -99,6 +116,30 @@ describe("overlappingDayTimePlaceKeys", () => {
             overlappingDayTimePlaceKeys([
                 dayTimePlace(1, "", "2026-09-01"),
                 dayTimePlace(2, "", "2026-09-01"),
+            ]).size
+        ).toBe(0);
+    });
+});
+
+// D64: one student contract twice in the group on one day
+describe("overlappingStudentKeys", () => {
+    it("marks the rows of one contract whose periods overlap", () => {
+        expect([
+            ...overlappingStudentKeys([
+                student(1, "20", "2026-09-01"),
+                student(2, "21", "2026-09-01"),
+                student(3, "20", "2026-09-15", "2026-09-30"),
+            ]),
+        ].sort()).toEqual([1, 3]);
+    });
+
+    it("allows consecutive periods of one contract and rows without a contract", () => {
+        expect(
+            overlappingStudentKeys([
+                student(1, "20", "2026-09-01", "2026-09-15"),
+                student(2, "20", "2026-09-15"),
+                student(3, "", "2026-09-01"),
+                student(4, "", "2026-09-01"),
             ]).size
         ).toBe(0);
     });

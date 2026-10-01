@@ -1,7 +1,7 @@
 //GroupStudentsTab.tsx
 
 import type { FC } from "react";
-import { Button, Form, Table } from "react-bootstrap";
+import { Alert, Button, Form, Table } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IGroupStudentContractLookup } from "../redux/types/groupsTypes";
 import {
@@ -22,6 +22,8 @@ type GroupStudentsTabProps = {
     contracts: IGroupStudentContractLookup[] | undefined;
     courseId: string;
     groupSizeId: string;
+    //ერთი კონტრაქტის სტრიქონები, რომელთა პერიოდები ერთმანეთს ფარავს (D64)
+    overlapping: Set<number>;
     onChange: (rows: IStudentFormRow[]) => void;
 };
 
@@ -39,7 +41,8 @@ const tariffColumns: {
 
 //Access-ის GroupsByStudents ქვე-ფორმა: მოსწავლის კონტრაქტი, ტარიფი, პერიოდი და შენიშვნა
 const GroupStudentsTab: FC<GroupStudentsTabProps> = (props) => {
-    const { rows, contracts, courseId, groupSizeId, onChange } = props;
+    const { rows, contracts, courseId, groupSizeId, overlapping, onChange } =
+        props;
 
     const setRow = (
         key: number,
@@ -63,7 +66,14 @@ const GroupStudentsTab: FC<GroupStudentsTabProps> = (props) => {
                 </thead>
                 <tbody>
                     {rows.map((row, index) => (
-                        <tr key={row.key}>
+                        <tr
+                            key={row.key}
+                            className={
+                                overlapping.has(row.key)
+                                    ? "table-danger"
+                                    : undefined
+                            }
+                        >
                             <td>
                                 <Form.Select
                                     aria-label={`მოსწავლე ${index + 1}`}
@@ -192,6 +202,13 @@ const GroupStudentsTab: FC<GroupStudentsTabProps> = (props) => {
                     ))}
                 </tbody>
             </Table>
+            {overlapping.size > 0 && (
+                <Alert variant="danger">
+                    ერთი მოსწავლე ჯგუფში ერთ დღეს ორჯერ ვერ იქნება: მონიშნული
+                    სტრიქონები ერთი კონტრაქტისაა და მათი პერიოდები ერთმანეთს
+                    ფარავს
+                </Alert>
+            )}
             <Button
                 variant="outline-primary"
                 size="sm"

@@ -4,9 +4,10 @@ import { act, createEvent, fireEvent, render, screen, waitFor, within } from "@t
 import { Provider } from "react-redux";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
+import { mockFetch, testBaseUrl, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import { createGroupsStore, renderGroupsOnRoute } from "../testUtils/groupsTestStore";
+import { changedGroup, generation } from "../testUtils/lessonGeneratorTestData";
 import type {
     IGroup,
     IGroupFormLookups,
@@ -893,5 +894,82 @@ describe("GroupEdit", () => {
 
         await waitFor(() => expect(changes(calls)).toHaveLength(1));
         expect(changes(calls)[0].body).toMatchObject({ teachers: [], dayTimePlaces: [] });
+    });
+
+    // D64: one student contract twice in the group on one day
+    it("marks two rows of one student contract with overlapping periods and does not save them", async () => {
+        const calls = serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        fireEvent.click(tab(/მოსწავლეები/));
+
+        fireEvent.click(screen.getByRole("button", { name: /მოსწავლის დამატება/ }));
+        change("მოსწავლე 3", "20");
+        change("მოსწავლის დაწყება 3", "2026-10-05");
+
+        expect(screen.getByText(/ერთი მოსწავლე ჯგუფში ერთ დღეს ორჯერ ვერ იქნება/)).toBeInTheDocument();
+        expect(screen.getByText(/ჯგუფი არ შეინახება/)).toBeInTheDocument();
+        expect(screen.getByLabelText("მოსწავლე 1").closest("tr")).toHaveClass("table-danger");
+        expect(screen.getByLabelText("მოსწავლე 2").closest("tr")).not.toHaveClass("table-danger");
+        expect(screen.getByLabelText("მოსწავლე 3").closest("tr")).toHaveClass("table-danger");
+        fireEvent.click(tab(/განრიგი/));
+        fireEvent.click(saveButton());
+        await flush();
+        expect(changes(calls)).toHaveLength(0);
+        expect(tab(/მოსწავლეები/)).toHaveAttribute("aria-selected", "true");
+
+        change("მოსწავლის დასრულება 1", "2026-10-05");
+        expect(screen.queryByText(/ერთი მოსწავლე ჯგუფში ერთ დღეს ორჯერ/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/ჯგუფი არ შეინახება/)).not.toBeInTheDocument();
+        fireEvent.click(saveButton());
+        await waitFor(() => expect(changes(calls)).toHaveLength(1));
+    });
+
+    it("offers the lesson generator only for a saved group", async () => {
+        serve();
+        renderEditor("/editor");
+        await screen.findByLabelText("ჯგუფის კოდი");
+
+        expect(screen.queryByRole("button", { name: /ამ ჯგუფის გაკვეთილები/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /ამ ჯგუფის ბოლო გაკვეთილი/ })).not.toBeInTheDocument();
+    });
+
+    // the generator uses the saved group: unsaved changes would not count
+    it("disables the lesson generator while the form has unsaved changes", async () => {
+        serve();
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        const lessons = screen.getByRole("button", { name: /ამ ჯგუფის გაკვეთილები/ });
+        const lastLesson = screen.getByRole("button", { name: /ამ ჯგუფის ბოლო გაკვეთილი/ });
+        expect(lessons).toBeEnabled();
+        expect(screen.queryByText(/ჯერ შეინახეთ ცვლილებები/)).not.toBeInTheDocument();
+
+        change("ჯგუფის კოდი", "1009");
+
+        expect(lessons).toBeDisabled();
+        expect(lastLesson).toBeDisabled();
+        expect(screen.getByText(/ჯერ შეინახეთ ცვლილებები/)).toBeInTheDocument();
+
+        change("ჯგუფის კოდი", "1001");
+        expect(lessons).toBeEnabled();
+    });
+
+    it("generates the group lessons, shows the result and reloads the group", async () => {
+        const calls = mockFetch((call) => {
+            if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+            if (call.url.includes("/studentcontracts")) return { status: 200, body: studentContracts };
+            if (call.url.includes("/lessongenerator/")) return { status: 200, body: generation([changedGroup]) };
+            return { status: 200, body: group };
+        });
+        renderEditor("/editor/7");
+        await screen.findByLabelText("ჯგუფის კოდი");
+        const groupLoads = () => calls.filter((c) => c.method === "GET" && c.url.endsWith("/groups/7")).length;
+        const loadsBefore = groupLoads();
+
+        fireEvent.click(screen.getByRole("button", { name: /ამ ჯგუფის გაკვეთილები/ }));
+
+        expect(await screen.findByText(/შეიქმნა 1, შეიცვალა 1, წაიშალა 0 გაკვეთილი/)).toBeInTheDocument();
+        expect(calls.find((c) => c.method === "POST")?.url).toBe(`${testBaseUrl}/lessongenerator/groups/7`);
+        await waitFor(() => expect(groupLoads()).toBeGreaterThan(loadsBefore));
     });
 });

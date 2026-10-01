@@ -15,15 +15,20 @@ import navMenuReducer, {
 import userReducer, { setUser } from "../appcarcass/redux/slices/userSlice";
 import type { IAppUser } from "../appcarcass/redux/types/authenticationTypes";
 import { groupsApi } from "../redux/api/groupsApi";
+import { lessonGeneratorApi } from "../redux/api/lessonGeneratorApi";
 import { mainMenu, type MenuState } from "./studentContractsTestStore";
 import { testBaseUrl } from "./testStore";
 
-// a store with a logged-in user and the main menu in the requested state;
+// a store with a logged-in user (with the given special rights) and the main menu in the requested state;
 // "withRight" has the groups item, "withoutRight" only the contract pages
-export function createGroupsStore(menu: MenuState = "withRight") {
+export function createGroupsStore(
+    menu: MenuState = "withRight",
+    appClaims?: string[]
+) {
     const store = configureStore({
         reducer: {
             [groupsApi.reducerPath]: groupsApi.reducer,
+            [lessonGeneratorApi.reducerPath]: lessonGeneratorApi.reducer,
             alertState: alertReducer,
             appParametersState: appParametersReducer,
             navMenuState: navMenuReducer,
@@ -34,10 +39,11 @@ export function createGroupsStore(menu: MenuState = "withRight") {
         },
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware({ serializableCheck: false }).concat(
-                groupsApi.middleware
+                groupsApi.middleware,
+                lessonGeneratorApi.middleware
             ),
     });
-    store.dispatch(setUser({ token: "token" } as IAppUser));
+    store.dispatch(setUser({ token: "token", appClaims } as IAppUser));
     if (menu === "withRight") store.dispatch(setNavMenu(mainMenu("groups")));
     if (menu === "withoutRight")
         store.dispatch(
@@ -65,6 +71,10 @@ export function renderGroupsOnRoute(
                     <Route
                         path="/groupEdit/:grpId"
                         element={<div>edit page</div>}
+                    />
+                    <Route
+                        path="/lessonGeneratorLog"
+                        element={<div>log page</div>}
                     />
                 </Routes>
             </MemoryRouter>

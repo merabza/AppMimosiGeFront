@@ -25,6 +25,7 @@ import type {
 import { formatDate } from "../studentContracts/dateFormat";
 import { groupEditRoute, useHasGroupsRight } from "./groupsMenu";
 import { buildGroupsFilterFields, type IGroupsListFilter } from "./groupsListFilter";
+import GroupsLessonsGenerator from "../lessonGenerator/GroupsLessonsGenerator";
 
 interface IGridState {
     offset: number;
@@ -229,6 +230,7 @@ const Groups: FC = () => {
 
     return (
         <div>
+            <GroupsLessonsGenerator />
             <Form className="mb-2" onSubmit={(e) => e.preventDefault()}>
                 <Row>
                     {lookupFilter(

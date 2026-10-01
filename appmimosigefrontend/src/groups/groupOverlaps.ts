@@ -1,6 +1,10 @@
 //groupOverlaps.ts
 
-import type { IDayTimePlaceFormRow, ITeacherFormRow } from "./groupForm";
+import type {
+    IDayTimePlaceFormRow,
+    IStudentFormRow,
+    ITeacherFormRow,
+} from "./groupForm";
 
 //პერიოდები [დაწყება, დასრულება): დასრულების დღე პერიოდში აღარ შედის, ცარიელი დასრულება დაუსრულებელს ნიშნავს.
 //თარიღები "YYYY-MM-DD"-ია, ამიტომ სტრიქონებად შედარდება. სერვერი იგივე წესით ამოწმებს (GroupPeriods)
@@ -53,5 +57,15 @@ export function overlappingDayTimePlaceKeys(
     return overlappingKeys(
         rows,
         (a, b) => a.weekDayId !== "" && a.weekDayId === b.weekDayId
+    );
+}
+
+//ერთი კონტრაქტი ჯგუფში ერთ დღეს ორჯერ: გენერატორი მხოლოდ პირველ სტრიქონს იყენებს (D64)
+export function overlappingStudentKeys(rows: IStudentFormRow[]): Set<number> {
+    return overlappingKeys(
+        rows,
+        (a, b) =>
+            a.studentContractId !== "" &&
+            a.studentContractId === b.studentContractId
     );
 }

@@ -25,6 +25,7 @@ import { userRightsApi } from "../appcarcass/redux/api/userRightsApi";
 import { studentContractsApi } from "./api/studentContractsApi";
 import { teacherContractsApi } from "./api/teacherContractsApi";
 import { groupsApi } from "./api/groupsApi";
+import { lessonGeneratorApi } from "./api/lessonGeneratorApi";
 
 export const store = configureStore({
     reducer: {
@@ -38,6 +39,7 @@ export const store = configureStore({
         [studentContractsApi.reducerPath]: studentContractsApi.reducer,
         [teacherContractsApi.reducerPath]: teacherContractsApi.reducer,
         [groupsApi.reducerPath]: groupsApi.reducer,
+        [lessonGeneratorApi.reducerPath]: lessonGeneratorApi.reducer,
 
         //states - carcass
         alertState: alertReducer,
@@ -63,6 +65,7 @@ export const store = configureStore({
             studentContractsApi.middleware,
             teacherContractsApi.middleware,
             groupsApi.middleware,
+            lessonGeneratorApi.middleware,
         ]),
 });
 

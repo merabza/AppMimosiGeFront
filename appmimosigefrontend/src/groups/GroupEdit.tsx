@@ -26,12 +26,14 @@ import {
 } from "./groupForm";
 import {
     overlappingDayTimePlaceKeys,
+    overlappingStudentKeys,
     overlappingTeacherKeys,
 } from "./groupOverlaps";
 import { groupsMenuKey, useHasGroupsRight } from "./groupsMenu";
 import GroupTeachersTab from "./GroupTeachersTab";
 import GroupStudentsTab from "./GroupStudentsTab";
 import GroupDayTimePlacesTab from "./GroupDayTimePlacesTab";
+import GroupLessonsGenerator from "../lessonGenerator/GroupLessonsGenerator";
 
 type GroupTab = "teachers" | "students" | "dayTimePlaces";
 
@@ -77,6 +79,8 @@ const GroupEdit: FC = () => {
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
 
     const [form, setForm] = useState<IGroupForm | null>(null);
+    //ჩატვირთული ჯგუფი, შეუნახავი ცვლილებების გასარჩევად
+    const [loadedForm, setLoadedForm] = useState<IGroupForm | null>(null);
     const [formKey, setFormKey] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<GroupTab>("teachers");
     const [invalidControl, setInvalidControl] =
@@ -101,7 +105,9 @@ const GroupEdit: FC = () => {
             setFormKey(currentKey);
             setActiveTab("teachers");
         } else if (group && group.grpId === grpId && !groupLoading) {
-            setForm(groupToForm(group));
+            const loaded = groupToForm(group);
+            setForm(loaded);
+            setLoadedForm(loaded);
             setFormKey(currentKey);
             setActiveTab("teachers");
         }
@@ -132,7 +138,12 @@ const GroupEdit: FC = () => {
     if (!lookups || !form || formKey !== currentKey) return <Loading />;
 
     const teacherOverlaps = overlappingTeacherKeys(form.teachers);
+    const studentOverlaps = overlappingStudentKeys(form.students);
     const dayTimePlaceOverlaps = overlappingDayTimePlaceKeys(form.dayTimePlaces);
+    const hasUnsavedChanges =
+        loadedForm !== null &&
+        JSON.stringify(groupFormToRequest(form)) !==
+            JSON.stringify(groupFormToRequest(loadedForm));
 
     const setField = (field: HeaderField, value: string) =>
         setForm((f) => (f ? { ...f, [field]: value } : f));
@@ -153,6 +164,10 @@ const GroupEdit: FC = () => {
         //გადაფარვისას სერვერიც უარს ამბობს (გენერატორის შეცდომები 5 და 7); გაფრთხილება ჩანართზე უკვე ჩანს
         if (teacherOverlaps.size > 0) {
             setActiveTab("teachers");
+            return;
+        }
+        if (studentOverlaps.size > 0) {
+            setActiveTab("students");
             return;
         }
         if (dayTimePlaceOverlaps.size > 0) {
@@ -216,7 +231,6 @@ const GroupEdit: FC = () => {
                     </h5>
                 </Col>
                 <Col sm="4" className="text-end">
-                    {/* ნაწილი 09: "ამ ჯგუფის გაკვეთილები" და "ამ ჯგუფის ბოლო გაკვეთილი" */}
                     {grpId !== undefined && (
                         <Button
                             variant="danger"
@@ -229,6 +243,13 @@ const GroupEdit: FC = () => {
                     )}
                 </Col>
             </Row>
+
+            {grpId !== undefined && (
+                <GroupLessonsGenerator
+                    grpId={grpId}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                />
+            )}
 
             <Row>
                 <Col sm="2">
@@ -328,6 +349,7 @@ const GroupEdit: FC = () => {
                             contracts={studentContracts}
                             courseId={form.courseId}
                             groupSizeId={form.groupSizeId}
+                            overlapping={studentOverlaps}
                             onChange={(students) =>
                                 setForm((f) => (f ? { ...f, students } : f))
                             }
@@ -353,10 +375,12 @@ const GroupEdit: FC = () => {
                 </Tab>
             </Tabs>
 
-            {(teacherOverlaps.size > 0 || dayTimePlaceOverlaps.size > 0) && (
+            {(teacherOverlaps.size > 0 ||
+                studentOverlaps.size > 0 ||
+                dayTimePlaceOverlaps.size > 0) && (
                 <Alert variant="warning">
-                    ჯგუფი არ შეინახება, სანამ მასწავლებლების ან განრიგის
-                    პერიოდები ერთმანეთს ფარავს
+                    ჯგუფი არ შეინახება, სანამ მასწავლებლების, ერთი მოსწავლის
+                    ან განრიგის პერიოდები ერთმანეთს ფარავს
                 </Alert>
             )}
 
