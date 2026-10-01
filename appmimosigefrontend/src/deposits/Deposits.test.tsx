@@ -1,12 +1,13 @@
 //Deposits.test.tsx
 
 import { StrictMode } from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
-import type { MenuState } from "../testUtils/studentContractsTestStore";
+import { setMenuLoading, setNavMenu } from "../appcarcass/redux/slices/navMenuSlice";
+import { mainMenu, type MenuState } from "../testUtils/studentContractsTestStore";
 import {
     balancesLookups,
     createBalancesStore,
@@ -79,6 +80,7 @@ function lastRowsParams(calls: FetchCall[]) {
 }
 
 const location = () => screen.getByTestId("location").textContent ?? "";
+const loadingText = "მიმდინარეობს ჩატვირთვა...";
 const rowCells = (scId: number) =>
     within(screen.getByTestId(`deposit-${scId}`))
         .getAllByRole("cell")
@@ -94,12 +96,30 @@ describe("Deposits", () => {
         await waitFor(() => expect(calls.map((c) => [c.method, c.url.split("/api/v1")[1]])).toContainEqual(["POST", "/deposits/recount"]));
         expect(await screen.findByText(/გაკვეთილები და შემდეგი გადახდის თარიღები გადაითვლება/)).toBeInTheDocument();
         expect(rowsRequests(calls)).toHaveLength(0);
+        //the rows are not loading yet: only the recount message shows
+        expect(screen.queryByText(loadingText)).not.toBeInTheDocument();
 
         act(() => finishRecount({ status: 200, body: recountResult }));
 
         expect(await screen.findByTestId("deposit-10")).toBeInTheDocument();
         expect(rowsRequests(calls)).toHaveLength(1);
         expect(screen.queryByText(/გადაითვლება/)).not.toBeInTheDocument();
+        expect(screen.queryByText(loadingText)).not.toBeInTheDocument();
+    });
+
+    // the menu may arrive after the page: the recount waits for the right
+    it("recounts once the menu has loaded", async () => {
+        const calls = serve();
+        const store = renderPage("/deposits", "loading");
+        expect(calls).toHaveLength(0);
+
+        act(() => {
+            store.dispatch(setNavMenu(mainMenu("deposits")));
+            store.dispatch(setMenuLoading(false));
+        });
+
+        expect(await screen.findByTestId("deposit-10")).toBeInTheDocument();
+        expect(calls.filter((c) => c.url.endsWith("/deposits/recount"))).toHaveLength(1);
     });
 
     // React's StrictMode runs the effects twice in development
@@ -126,7 +146,7 @@ describe("Deposits", () => {
         serve();
         renderPage();
 
-        expect(await screen.findByTestId("recountSummary")).toHaveTextContent(
+        expect((await screen.findByTestId("recountSummary")).textContent).toBe(
             "გადაითვალა: ჯგუფები 26 (შეიცვალა 22), კონტრაქტები 121 (შეიცვალა 39)"
         );
     });
@@ -135,7 +155,7 @@ describe("Deposits", () => {
         serve({ recount: () => ({ status: 200, body: { ...recountResult, groupErrorsCount: 6 } }) });
         renderPage();
 
-        expect(await screen.findByTestId("recountSummary")).toHaveTextContent(
+        expect((await screen.findByTestId("recountSummary")).textContent).toBe(
             "გადაითვალა: ჯგუფები 26 (შეიცვალა 22), კონტრაქტები 121 (შეიცვალა 39), გენერატორის შეცდომები: 6 (გენერატორის ლოგშია)"
         );
     });
@@ -258,6 +278,16 @@ describe("Deposits", () => {
         expect(screen.getByRole("button", { name: caption })).toHaveClass("btn-primary");
     });
 
+    it("shows the other filter buttons as not pressed", async () => {
+        serve();
+        renderPage("/deposits?academicYearId=&maximum=0&dateTo=2026-10-06&filter=filter");
+
+        await screen.findByTestId("deposit-10");
+        expect(screen.getByRole("button", { name: "ფილტრი" })).toHaveClass("btn-primary");
+        expect(screen.getByRole("button", { name: "დარეკვის ფილტრი" })).toHaveClass("btn-outline-secondary");
+        expect(screen.getByRole("button", { name: "ფილტრის მოხსნა" })).toHaveClass("btn-outline-secondary");
+    });
+
     it("removes the filter", async () => {
         const calls = serve();
         renderPage("/deposits?academicYearId=&maximum=0&dateTo=2026-10-06&filter=call");
@@ -269,6 +299,50 @@ describe("Deposits", () => {
         await waitFor(() => expect(lastRowsParams(calls).filter).toBeUndefined());
         expect(screen.getByRole("button", { name: "ფილტრის მოხსნა" })).not.toHaveClass("btn-primary");
         expect(screen.getByRole("button", { name: "დარეკვის ფილტრი" })).not.toHaveClass("btn-primary");
+    });
+
+    // while the rows of a new filter load, the old ones are not shown as if they were the answer
+    it("hides the old rows while the new ones load", async () => {
+        let answered = 0;
+        serve({
+            rows: () => (answered++ === 0 ? { status: 200, body: deposits } : new Promise<FetchReply>(() => {})),
+        });
+        renderPage();
+
+        await screen.findByTestId("deposit-10");
+        expect(screen.queryByText(loadingText)).not.toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText("მაქსიმუმი"), { target: { value: "-10" } });
+
+        expect(await screen.findByText(loadingText)).toBeInTheDocument();
+        expect(screen.queryByTestId("deposit-10")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("totalBalance")).not.toBeInTheDocument();
+    });
+
+    // the filter replaces the address: going back leaves the page instead of stepping through the filters
+    it("keeps no history of the filter changes", async () => {
+        serve();
+        const store = createBalancesStore();
+        renderBalancesOnRoute(<Deposits />, store, "/deposits", "/payments", "/deposits");
+
+        await screen.findByTestId("deposit-10");
+        fireEvent.click(screen.getByRole("button", { name: "ფილტრი" }));
+        await waitFor(() => expect(location()).toContain("filter=filter"));
+        fireEvent.click(screen.getByRole("button", { name: "test back" }));
+
+        expect(location()).toBe("/payments");
+    });
+
+    // the form only holds the filter: submitting it must not reload the page
+    it("does not submit the filter form", async () => {
+        serve();
+        renderPage();
+
+        await screen.findByTestId("deposit-10");
+        const form = screen.getByLabelText("მაქსიმუმი").closest("form")!;
+        const submit = createEvent.submit(form);
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
     });
 
     it("loads every year or another year", async () => {
@@ -356,8 +430,20 @@ describe("Deposits", () => {
         const calls = serve();
         renderPage("/deposits", "loading");
 
+        expect(screen.getByText(loadingText)).toBeInTheDocument();
         expect(screen.queryByLabelText("მაქსიმუმი")).not.toBeInTheDocument();
+        expect(screen.queryByText("დეპოზიტების ნახვის უფლება არ გაქვთ")).not.toBeInTheDocument();
         expect(calls).toHaveLength(0);
+    });
+
+    it("waits for the lookups without showing a load problem", async () => {
+        const calls = serve({ lookups: () => new Promise<FetchReply>(() => {}) });
+        renderPage();
+
+        await waitFor(() => expect(calls.some((c) => c.url.includes("/formlookups"))).toBe(true));
+        expect(screen.getByText(loadingText)).toBeInTheDocument();
+        expect(screen.queryByText("ჩატვირთვის პრობლემა")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("მაქსიმუმი")).not.toBeInTheDocument();
     });
 
     it("shows the load problem", async () => {

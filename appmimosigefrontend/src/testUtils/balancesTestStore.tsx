@@ -22,7 +22,7 @@ import type {
     IDepositRow,
     IStatementRow,
 } from "../redux/types/balancesTypes";
-import LocationProbe from "./LocationProbe";
+import LocationProbe, { BackButton } from "./LocationProbe";
 import { mainMenu, type MenuState } from "./studentContractsTestStore";
 import { testBaseUrl } from "./testStore";
 
@@ -57,21 +57,24 @@ export function createBalancesStore(menu: MenuState = "withRight", appClaims?: s
 
 export type BalancesStore = ReturnType<typeof createBalancesStore>;
 
-// renders the element on the given route; the other page renders a marker text
+// renders the element on the given route (several entries make a history to go back in); the other pages render a
+// marker text
 export function renderBalancesOnRoute(
     element: ReactElement,
     store: BalancesStore,
     path: string,
-    url: string
+    ...urls: string[]
 ) {
     return render(
         <Provider store={store}>
-            <MemoryRouter initialEntries={[url]}>
+            <MemoryRouter initialEntries={urls} initialIndex={urls.length - 1}>
                 <Routes>
                     <Route path={path} element={element} />
                     <Route path="/chargesAndPayments" element={<div>statement page</div>} />
+                    <Route path="/payments" element={<div>payments page</div>} />
                 </Routes>
                 <LocationProbe />
+                <BackButton />
             </MemoryRouter>
         </Provider>
     );

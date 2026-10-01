@@ -1,7 +1,7 @@
 //ChargesAndPayments.test.tsx
 
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import { decodeFilterSortRequest, type MenuState } from "../testUtils/studentContractsTestStore";
 import {
@@ -45,6 +45,12 @@ function renderPage(url = "/chargesAndPayments", menu: MenuState = "withRight") 
     const store = createBalancesStore(menu);
     renderBalancesOnRoute(<ChargesAndPayments />, store, "/chargesAndPayments", url);
     return store;
+}
+
+const yearSelect = () => screen.getByLabelText("მოსწავლე: სასწავლო წელი");
+
+function contractsRequests(calls: FetchCall[]) {
+    return calls.filter((c) => c.url.includes("/studentcontracts")).map((c) => requestedYear(c.url));
 }
 
 function rowsRequests(calls: FetchCall[]) {
@@ -104,6 +110,39 @@ describe("ChargesAndPayments", () => {
             "25.00",
             "116.67",
         ]);
+    });
+
+    it("shows the column captions", async () => {
+        serve();
+        renderPage();
+
+        await screen.findByText("15.09.2026 15:00");
+        expect(within(screen.getAllByRole("row")[0]).getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
+            "N",
+            "ID",
+            "სახე",
+            "თარიღი",
+            "მოსწავლე",
+            "დოკუმენტი",
+            "თანხა",
+            "ნაშთი",
+        ]);
+    });
+
+    // a charge and a payment may have the same id: every row still needs its own key
+    it("keys the rows by kind and id", async () => {
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            serve();
+            renderPage();
+
+            expect(await screen.findByText("16.09.2026")).toBeInTheDocument();
+            expect(consoleError.mock.calls.some((args) => args.some((arg) => String(arg).includes("key")))).toBe(
+                false
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 
     it("shows the start balance above and the end balance below", async () => {
@@ -177,6 +216,84 @@ describe("ChargesAndPayments", () => {
         );
         expect(location()).toContain("studentContractId=11");
         expect(lastRowsRequest(calls).offset).toBe(0);
+    });
+
+    it("opens the student list of the year in the address", async () => {
+        const calls = serve();
+        renderPage("/chargesAndPayments?academicYearId=10&studentContractId=12&dateFrom=&dateTo=");
+
+        await waitFor(() => expect(screen.getByLabelText("მოსწავლე")).toHaveValue("Gamma Gia 6.001"));
+        expect(yearSelect()).toHaveValue("10");
+        expect(contractsRequests(calls)).toEqual([10]);
+    });
+
+    // without a current year there is no list to choose a student from
+    it("loads no student list without a current year", async () => {
+        const calls = mockFetch((call) => {
+            if (call.url.includes("/formlookups"))
+                return { status: 200, body: { ...balancesLookups, currentAcademicYearId: null } };
+            if (call.url.includes("/studentcontracts")) return { status: 200, body: [] };
+            return { status: 200, body: rows };
+        });
+        renderPage();
+
+        await screen.findByText("15.09.2026 15:00");
+        expect(contractsRequests(calls)).toEqual([]);
+    });
+
+    it("changes the year of the student list and drops the chosen student", async () => {
+        const calls = serve();
+        renderPage("/chargesAndPayments?academicYearId=11&studentContractId=10&dateFrom=&dateTo=");
+
+        await screen.findByText("15.09.2026 15:00");
+        fireEvent.change(yearSelect(), { target: { value: "10" } });
+
+        await waitFor(() => expect(contractsRequests(calls)).toContain(10));
+        expect(location()).toBe("/chargesAndPayments?academicYearId=10&studentContractId=&dateFrom=&dateTo=");
+        await waitFor(() => expect(lastRowsRequest(calls).filterFields).toEqual([]));
+    });
+
+    it("changes the start date", async () => {
+        const calls = serve();
+        renderPage("/chargesAndPayments?dateFrom=2026-09-01&dateTo=2026-09-30");
+
+        await screen.findByText("15.09.2026 15:00");
+        fireEvent.change(screen.getByLabelText("თარიღიდან"), { target: { value: "2026-09-10" } });
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls).filterFields).toEqual([
+                { fieldName: "dateFrom", value: "2026-09-10" },
+                { fieldName: "dateTo", value: "2026-09-30" },
+            ])
+        );
+    });
+
+    // the filter replaces the address: going back leaves the statement instead of stepping through the filters
+    it("keeps no history of the filter changes", async () => {
+        serve();
+        const store = createBalancesStore();
+        renderBalancesOnRoute(<ChargesAndPayments />, store, "/chargesAndPayments", "/payments",
+            "/chargesAndPayments?dateFrom=2026-09-01&dateTo=2026-09-30");
+
+        await screen.findByText("15.09.2026 15:00");
+        fireEvent.change(screen.getByLabelText("თარიღამდე"), { target: { value: "2026-10-31" } });
+        await waitFor(() => expect(location()).toContain("dateTo=2026-10-31"));
+        fireEvent.click(screen.getByRole("button", { name: "test back" }));
+
+        expect(location()).toBe("/payments");
+    });
+
+    // the form only holds the filter: submitting it must not reload the page
+    it("does not submit the filter form", async () => {
+        serve();
+        renderPage();
+
+        await screen.findByText("15.09.2026 15:00");
+        const form = screen.getByLabelText("თარიღიდან").closest("form")!;
+        const submit = createEvent.submit(form);
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
     });
 
     it("changes the dates", async () => {

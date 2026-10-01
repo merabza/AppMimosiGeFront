@@ -64,9 +64,10 @@ export function buildStatementFilterFields(filter: IStatementFilter): IFilterFie
     ].filter((f) => f.value !== "");
 }
 
-//დაწყება დასრულებაზე გვიან: სერვერი ასეთ ფილტრს არ იღებს. ცარიელი საზღვარი შეზღუდვის არქონაა
+//დაწყება დასრულებაზე გვიან: სერვერი ასეთ ფილტრს არ იღებს. "YYYY-MM-DD" სტრიქონებად შედარდება; ცარიელი დაწყება
+//არცერთ თარიღზე გვიან არ არის, ცარიელი დასრულება კი შეზღუდვის არქონაა
 export function isDateRangeInvalid(filter: IStatementFilter): boolean {
-    return filter.dateFrom !== "" && filter.dateTo !== "" && filter.dateFrom > filter.dateTo;
+    return filter.dateTo !== "" && filter.dateFrom > filter.dateTo;
 }
 
 //ბალანსებიდან გახსნილი ამონაწერი (Access: კონტრაქტი და ბალანსების "თარიღამდე"; "თარიღიდან" ნაგულისხმევი რჩება)

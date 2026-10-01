@@ -54,8 +54,8 @@ function column(
 }
 
 //გადახდა თარიღით, დარიცხვა გაკვეთილის დროითაც
-function formatOperationDate(row: IStatementRow): string {
-    return row.isPayment ? formatDate(row.operationDate) : formatDateTime(row.operationDate);
+function formatOperationDate(value: string | undefined, row: IStatementRow): string {
+    return row.isPayment ? formatDate(value) : formatDateTime(value);
 }
 
 const statementColumns: IGridColumn[] = [
@@ -68,7 +68,7 @@ const statementColumns: IGridColumn[] = [
     column(
         "operationDate",
         "თარიღი",
-        <CustomColumn onGetCell={(_, record) => formatOperationDate(record as IStatementRow)} />
+        <CustomColumn onGetCell={(value, record) => formatOperationDate(value, record as IStatementRow)} />
     ),
     column("studentName", "მოსწავლე"),
     column("document", "დოკუმენტი"),
