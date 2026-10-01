@@ -11,9 +11,10 @@ import {
     requestedYear,
     yearContracts,
 } from "../testUtils/paymentsTestStore";
-import StudentContractPicker from "./StudentContractPicker";
+import StudentContractPicker, { type StudentContractsHook } from "./StudentContractPicker";
 
 type HarnessProps = {
+    useStudentContracts?: StudentContractsHook;
     year?: string;
     contract?: string;
     required?: boolean;
@@ -47,6 +48,7 @@ function Harness(props: HarnessProps) {
                     setContract("");
                 }}
                 onContractChange={setContract}
+                useStudentContracts={props.useStudentContracts}
             />
             <div data-testid="contract">{contract}</div>
             <button type="submit">save</button>
@@ -364,6 +366,20 @@ describe("StudentContractPicker", () => {
 
             expect(screen.queryByTitle("მოსწავლის ფილტრის მოხსნა")).not.toBeInTheDocument();
         });
+    });
+
+    // another page loads the contracts from its own endpoint (its own menu right)
+    it("takes the contracts from the given hook", async () => {
+        const calls = serve();
+        const useStudentContracts = vi.fn<StudentContractsHook>(() => ({
+            data: [{ id: 21, name: "Delta Dan 6.021" }],
+            isFetching: false,
+        }));
+        renderPicker({ contract: "21", useStudentContracts });
+
+        expect(input()).toHaveValue("Delta Dan 6.021");
+        expect(useStudentContracts).toHaveBeenCalledWith(11, { skip: false });
+        expect(calls).toHaveLength(0);
     });
 
     it("disables the year, the search and the clearing", async () => {

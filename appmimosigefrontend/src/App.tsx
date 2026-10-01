@@ -79,6 +79,8 @@ import Lessons from "./lessons/Lessons";
 import LessonEdit from "./lessons/LessonEdit";
 import Payments from "./payments/Payments";
 import PaymentEdit from "./payments/PaymentEdit";
+import ChargesAndPayments from "./chargesAndPayments/ChargesAndPayments";
+import Deposits from "./deposits/Deposits";
 
 library.add(
     faCheckSquare,
@@ -222,6 +224,11 @@ const App: FC = () => {
                                 element={<PaymentEdit />}
                             />
                             <Route path="paymentEdit" element={<PaymentEdit />} />
+                            <Route
+                                path="chargesAndPayments"
+                                element={<ChargesAndPayments />}
+                            />
+                            <Route path="deposits" element={<Deposits />} />
 
                             {/* Project AppRoutes finish */}
 

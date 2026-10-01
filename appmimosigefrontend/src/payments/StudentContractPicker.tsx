@@ -6,6 +6,12 @@ import { useGetPaymentStudentContractsQuery } from "../redux/api/paymentsApi";
 import type { ILookupItem } from "../redux/types/studentContractsTypes";
 import { matchesSearch } from "./contractSearch";
 
+//წლის კონტრაქტების query-ის hook: ყოველ გვერდს თავისი endpoint-ი აქვს, რომ მისი მენიუს უფლება შემოწმდეს
+export type StudentContractsHook = (
+    academicYearId: number,
+    options: { skip: boolean }
+) => { data?: ILookupItem[]; isFetching: boolean };
+
 type StudentContractPickerProps = {
     id: string;
     label: string;
@@ -20,6 +26,7 @@ type StudentContractPickerProps = {
     //წლის შეცვლისას მშობელი არჩეულ კონტრაქტს ასუფთავებს: ის სხვა წლისაა
     onYearChange: (academicYearId: string) => void;
     onContractChange: (studentContractId: string) => void;
+    useStudentContracts?: StudentContractsHook;
 };
 
 //მოსწავლის კონტრაქტის ძებნადი არჩევა სასწავლო წლის კონტრაქტებიდან ("გვარი სახელი ნომერი", როგორც Access-ის
@@ -36,11 +43,12 @@ const StudentContractPicker: FC<StudentContractPickerProps> = (props) => {
         disabled = false,
         onYearChange,
         onContractChange,
+        useStudentContracts = useGetPaymentStudentContractsQuery,
     } = props;
     const [search, setSearch] = useState("");
     const [searching, setSearching] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const { data: contracts, isFetching } = useGetPaymentStudentContractsQuery(
+    const { data: contracts, isFetching } = useStudentContracts(
         Number(academicYearId),
         { skip: academicYearId === "" }
     );

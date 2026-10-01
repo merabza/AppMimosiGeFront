@@ -28,6 +28,8 @@ import { groupsApi } from "./api/groupsApi";
 import { lessonGeneratorApi } from "./api/lessonGeneratorApi";
 import { lessonsApi } from "./api/lessonsApi";
 import { paymentsApi } from "./api/paymentsApi";
+import { chargesAndPaymentsApi } from "./api/chargesAndPaymentsApi";
+import { depositsApi } from "./api/depositsApi";
 
 export const store = configureStore({
     reducer: {
@@ -44,6 +46,8 @@ export const store = configureStore({
         [lessonGeneratorApi.reducerPath]: lessonGeneratorApi.reducer,
         [lessonsApi.reducerPath]: lessonsApi.reducer,
         [paymentsApi.reducerPath]: paymentsApi.reducer,
+        [chargesAndPaymentsApi.reducerPath]: chargesAndPaymentsApi.reducer,
+        [depositsApi.reducerPath]: depositsApi.reducer,
 
         //states - carcass
         alertState: alertReducer,
@@ -72,6 +76,8 @@ export const store = configureStore({
             lessonGeneratorApi.middleware,
             lessonsApi.middleware,
             paymentsApi.middleware,
+            chargesAndPaymentsApi.middleware,
+            depositsApi.middleware,
         ]),
 });
 
