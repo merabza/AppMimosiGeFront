@@ -1,7 +1,10 @@
 //CrmCallEdit.test.tsx
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Provider } from "react-redux";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
+import { setAlertApiMutationError } from "../appcarcass/redux/slices/alertSlice";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import { requestedYear } from "../testUtils/paymentsTestStore";
@@ -300,6 +303,247 @@ describe("CrmCallEdit", () => {
 
             expect(await screen.findByText("ჩატვირთვის პრობლემა")).toBeInTheDocument();
             expect(screen.getByText("call not found")).toBeInTheDocument();
+        });
+    });
+
+    describe("while working", () => {
+        // the change replies in turn; a missing one never arrives
+        function serveChanges(...replies: FetchReply[]) {
+            let next = 0;
+            return serve(crmCallData(), () =>
+                next < replies.length ? replies[next++] : new Promise<FetchReply>(() => {})
+            );
+        }
+
+        const refused = {
+            status: 400,
+            body: { title: "AnswerTypeNotFound", detail: "refused", status: 400 },
+        };
+
+        const button = (name: RegExp) => screen.getByRole("button", { name });
+
+        async function openCall() {
+            renderEditor("/crmCallEdit/5");
+            await waitFor(() => expect(field("შედეგი")).toHaveValue("3"));
+        }
+
+        // two calls in one editor: the second one is answered by hand, so the loading in between can be seen
+        function renderTwoCalls(six: Promise<FetchReply> | FetchReply, change: ChangeReply = () => ({ status: 200 })) {
+            mockFetch((call) => {
+                if (call.method !== "GET") return change(call);
+                if (call.url.includes("/formlookups")) return { status: 200, body: crmCallLookups };
+                if (call.url.includes("/studentcontracts"))
+                    return { status: 200, body: crmYearContracts[requestedYear(call.url)] ?? [] };
+                if (call.url.endsWith("/6")) return six;
+                return { status: 200, body: crmCallData() };
+            });
+            render(
+                <Provider store={createCrmCallsStore()}>
+                    <MemoryRouter initialEntries={["/crmCallEdit/5"]}>
+                        <Routes>
+                            <Route path="/crmCallEdit/:crmCallId" element={<CrmCallEdit />} />
+                        </Routes>
+                        <Link to="/crmCallEdit/6">next</Link>
+                    </MemoryRouter>
+                </Provider>
+            );
+        }
+
+        it("loads no call for a new one", async () => {
+            const calls = serve();
+            renderEditor("/crmCallEdit");
+
+            await screen.findByText("ახალი ზარი");
+            expect(calls.some((c) => /\/crmcalls\/\d+$/.test(c.url))).toBe(false);
+        });
+
+        it("loads no contracts for a new call when there is no current academic year", async () => {
+            const calls = mockFetch((call) => {
+                if (call.url.includes("/formlookups"))
+                    return { status: 200, body: { ...crmCallLookups, currentAcademicYearId: null } };
+                return { status: 200, body: [] };
+            });
+            renderEditor("/crmCallEdit");
+
+            await screen.findByText("ახალი ზარი");
+            expect(calls.some((c) => c.url.includes("/studentcontracts"))).toBe(false);
+        });
+
+        // the student of the other year is gone, so a student of the new year has to be chosen first
+        it("is not sent after the year changed until a student is chosen", async () => {
+            const calls = serve();
+            renderEditor("/crmCallEdit");
+            await screen.findByText("ახალი ზარი");
+            await chooseStudent("Alpha Ann / 6.001");
+            fireEvent.change(field("შედეგი"), { target: { value: "2" } });
+
+            fireEvent.change(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი"), {
+                target: { value: "10" },
+            });
+            fireEvent.click(screen.getByRole("button", { name: /შექმნა/ }));
+
+            expect(changes(calls)).toHaveLength(0);
+            expect(studentInput().validationMessage).toBe("აირჩიეთ მოსწავლის კონტრაქტი");
+        });
+
+        // the form is filled once per call, but another call opened in the same editor is loaded
+        it("loads another call opened in the same editor", async () => {
+            let answerSix: (reply: FetchReply) => void = () => {};
+            renderTwoCalls(new Promise<FetchReply>((resolve) => (answerSix = resolve)));
+            await waitFor(() => expect(field("შედეგი")).toHaveValue("3"));
+            fireEvent.change(field("შედეგი"), { target: { value: "1" } });
+
+            fireEvent.click(screen.getByText("next"));
+
+            expect(await screen.findByText("მიმდინარეობს ჩატვირთვა...")).toBeInTheDocument();
+            answerSix({ status: 200, body: crmCallData({ id: 6, answerTypeId: 2, callConversation: "six" }) });
+            await waitFor(() => expect(field("შედეგი")).toHaveValue("2"));
+            expect(field("საუბრის შინაარსი")).toHaveValue("six");
+        });
+
+        it("clears the change errors when another call is opened", async () => {
+            renderTwoCalls(
+                { status: 200, body: crmCallData({ id: 6, answerTypeId: 2 }) },
+                () => refused
+            );
+            await waitFor(() => expect(field("შედეგი")).toHaveValue("3"));
+            fireEvent.click(button(/შენახვა/));
+            await screen.findByText("refused");
+
+            fireEvent.click(screen.getByText("next"));
+
+            await waitFor(() => expect(field("შედეგი")).toHaveValue("2"));
+            expect(screen.queryByText("refused")).not.toBeInTheDocument();
+        });
+
+        // an error left by another page is not shown on the call
+        it("clears the change errors left from before", async () => {
+            serve();
+            const store = createCrmCallsStore();
+            store.dispatch(setAlertApiMutationError([{ errorCode: "Old", errorMessage: "old error" }]));
+            renderCrmCallsOnRoute(<CrmCallEdit />, store, "/crmCallEdit/:crmCallId", "/crmCallEdit/5");
+
+            await waitFor(() => expect(field("შედეგი")).toHaveValue("3"));
+            expect(screen.queryByText("old error")).not.toBeInTheDocument();
+        });
+
+        it("starts without the delete confirmation", async () => {
+            serve();
+            await openCall();
+
+            expect(screen.queryByRole("button", { name: "დიახ" })).not.toBeInTheDocument();
+        });
+
+        it("asks again after the deletion was declined", async () => {
+            serveChanges();
+            await openCall();
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "არა" }));
+            await waitFor(() => expect(screen.queryByRole("button", { name: "არა" })).not.toBeInTheDocument());
+            fireEvent.click(button(/წაშლა/));
+
+            expect(await screen.findByRole("button", { name: "არა" })).toBeInTheDocument();
+        });
+
+        it("asks again after a refused deletion", async () => {
+            serveChanges(refused);
+            await openCall();
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+            await screen.findByText("refused");
+            fireEvent.click(button(/წაშლა/));
+
+            expect(await screen.findByRole("button", { name: "დიახ" })).toBeInTheDocument();
+        });
+
+        it("titles the delete confirmation", async () => {
+            serve();
+            await openCall();
+
+            fireEvent.click(button(/წაშლა/));
+
+            expect(await screen.findByText("იშლება ზარი")).toBeInTheDocument();
+        });
+
+        it("clears the old error when saving again", async () => {
+            serveChanges(refused);
+            await openCall();
+            fireEvent.click(button(/შენახვა/));
+            await screen.findByText("refused");
+
+            fireEvent.click(button(/შენახვა/));
+
+            await waitFor(() => expect(button(/შენახვა/)).toBeDisabled());
+            expect(screen.queryByText("refused")).not.toBeInTheDocument();
+        });
+
+        it("clears the old error when deleting again", async () => {
+            serveChanges(refused);
+            await openCall();
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+            await screen.findByText("refused");
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+
+            await waitFor(() => expect(button(/წაშლა/)).toBeDisabled());
+            expect(screen.queryByText("refused")).not.toBeInTheDocument();
+        });
+
+        it("shows the spinner only on the save button while saving", async () => {
+            serveChanges();
+            await openCall();
+            expect(button(/შენახვა/).querySelector(".spinner-border")).toBeNull();
+
+            fireEvent.click(button(/შენახვა/));
+
+            await waitFor(() => expect(button(/შენახვა/)).toBeDisabled());
+            expect(button(/შენახვა/).querySelector(".spinner-border")).not.toBeNull();
+            expect(button(/წაშლა/).querySelector(".spinner-border")).toBeNull();
+            expect(button(/წაშლა/)).not.toBeDisabled();
+        });
+
+        it("shows the spinner while a new call is created", async () => {
+            const calls = serve(crmCallData(), () => new Promise<FetchReply>(() => {}));
+            renderEditor("/crmCallEdit");
+            await screen.findByText("ახალი ზარი");
+            await chooseStudent("Alpha Ann / 6.001");
+            fireEvent.change(field("შედეგი"), { target: { value: "2" } });
+
+            fireEvent.click(button(/შექმნა/));
+
+            await waitFor(() => expect(button(/შექმნა/)).toBeDisabled());
+            expect(button(/შექმნა/).querySelector(".spinner-border")).not.toBeNull();
+            expect(changes(calls)).toHaveLength(1);
+        });
+
+        it("shows the spinner only on the delete button while deleting", async () => {
+            serveChanges();
+            await openCall();
+            expect(button(/წაშლა/).querySelector(".spinner-border")).toBeNull();
+
+            fireEvent.click(button(/წაშლა/));
+            fireEvent.click(await screen.findByRole("button", { name: "დიახ" }));
+
+            await waitFor(() => expect(button(/წაშლა/)).toBeDisabled());
+            expect(button(/წაშლა/).querySelector(".spinner-border")).not.toBeNull();
+            expect(button(/შენახვა/).querySelector(".spinner-border")).toBeNull();
+            expect(button(/შენახვა/)).not.toBeDisabled();
+        });
+
+        // the page sends the call itself; the browser must not submit the form
+        it("keeps the browser from submitting the form", async () => {
+            serveChanges();
+            await openCall();
+            const form = button(/შენახვა/).closest("form")!;
+
+            const submit = createEvent.submit(form);
+            fireEvent(form, submit);
+
+            expect(submit.defaultPrevented).toBe(true);
         });
     });
 

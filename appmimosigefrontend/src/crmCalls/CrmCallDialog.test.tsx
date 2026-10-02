@@ -1,7 +1,8 @@
 //CrmCallDialog.test.tsx
 
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { setAlertApiMutationError } from "../appcarcass/redux/slices/alertSlice";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import { decodeFilterSortRequest } from "../testUtils/studentContractsTestStore";
 import {
@@ -166,6 +167,109 @@ describe("CrmCallDialog", () => {
 
         expect(await screen.findByText("result not found")).toBeInTheDocument();
         expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    // the whole conversation is in the tooltip of the shortened one
+    it("shows the whole conversation of a past call as its tooltip", async () => {
+        const text = `${"word ".repeat(20)}end`;
+        serve({ rows: () => ({ status: 200, body: { ...history, rows: [crmCallRow({ callConversation: text })] } }) });
+        renderDialog();
+
+        const table = await screen.findByTestId("crmCallsHistory");
+        const cell = within(table).getByTitle(text);
+        expect(cell.textContent).toHaveLength(60);
+    });
+
+    it("gives no tooltip to a past call without conversation", async () => {
+        serve();
+        renderDialog();
+
+        const table = await screen.findByTestId("crmCallsHistory");
+        const firstRow = within(table).getAllByRole("row")[1];
+        expect(within(firstRow).getAllByRole("cell")[2]).toHaveAttribute("title", "");
+    });
+
+    // a saved call reloads the history; while it loads the old calls are not shown
+    it("reloads the history after a saved call", async () => {
+        let historyRequests = 0;
+        serve({
+            rows: () =>
+                ++historyRequests === 1 ? { status: 200, body: history } : new Promise<FetchReply>(() => {}),
+        });
+        const { onSaved } = renderDialog();
+        await screen.findByTestId("crmCallsHistory");
+        fireEvent.change(field("შედეგი"), { target: { value: "3" } });
+
+        fireEvent.click(screen.getByRole("button", { name: /შენახვა/ }));
+
+        await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByTestId("crmCallsHistory")).not.toBeInTheDocument());
+        expect(screen.getByText("მიმდინარეობს ჩატვირთვა...")).toBeInTheDocument();
+        expect(historyRequests).toBe(2);
+    });
+
+    // an error left by the page (e.g. a failed recount) is not shown in the window
+    it("clears the change errors left from before", async () => {
+        serve();
+        const store = createCrmCallsStore();
+        store.dispatch(setAlertApiMutationError([{ errorCode: "Old", errorMessage: "old error" }]));
+        renderCrmCallsOnRoute(
+            <CrmCallDialog contract={contract} onClose={vi.fn()} onSaved={vi.fn()} />,
+            store,
+            "/deposits",
+            "/deposits"
+        );
+
+        await screen.findByTestId("crmCallsHistory");
+        expect(screen.queryByText("old error")).not.toBeInTheDocument();
+    });
+
+    it("clears the old error when saving again", async () => {
+        let creates = 0;
+        serve({
+            create: () =>
+                ++creates === 1
+                    ? { status: 400, body: { title: "AnswerTypeNotFound", detail: "refused", status: 400 } }
+                    : new Promise<FetchReply>(() => {}),
+        });
+        renderDialog();
+        await waitFor(() => expect(field("ზარის ტიპი")).toHaveValue("1"));
+        fireEvent.change(field("შედეგი"), { target: { value: "2" } });
+        fireEvent.click(screen.getByRole("button", { name: /შენახვა/ }));
+        await screen.findByText("refused");
+
+        fireEvent.click(screen.getByRole("button", { name: /შენახვა/ }));
+
+        await waitFor(() => expect(screen.getByRole("button", { name: /შენახვა/ })).toBeDisabled());
+        expect(screen.queryByText("refused")).not.toBeInTheDocument();
+    });
+
+    it("shows the spinner on the save button while saving", async () => {
+        serve({ create: () => new Promise<FetchReply>(() => {}) });
+        renderDialog();
+        await waitFor(() => expect(field("ზარის ტიპი")).toHaveValue("1"));
+        const save = () => screen.getByRole("button", { name: /შენახვა/ });
+        expect(save()).not.toBeDisabled();
+        expect(save().querySelector(".spinner-border")).toBeNull();
+        fireEvent.change(field("შედეგი"), { target: { value: "2" } });
+
+        fireEvent.click(save());
+
+        await waitFor(() => expect(save()).toBeDisabled());
+        expect(save().querySelector(".spinner-border")).not.toBeNull();
+    });
+
+    // the window sends the call itself; the browser must not submit the form
+    it("keeps the browser from submitting the form", async () => {
+        serve();
+        renderDialog();
+        await waitFor(() => expect(field("ზარის ტიპი")).toHaveValue("1"));
+        const form = screen.getByRole("button", { name: /შენახვა/ }).closest("form")!;
+
+        const submit = createEvent.submit(form);
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
     });
 
     it("closes without saving", async () => {

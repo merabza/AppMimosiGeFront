@@ -75,6 +75,23 @@ describe("CrmCalls", () => {
         ]);
     });
 
+    it("titles the list", async () => {
+        serve();
+        renderList();
+
+        expect(await screen.findByRole("heading", { name: "CRM ზარები" })).toBeInTheDocument();
+    });
+
+    // the lookups arrived but the calls did not
+    it("tells when the calls fail to load", async () => {
+        serve(() => ({ status: 400, body: { title: "FilterSortRequestIsInvalid", detail: "bad filter", status: 400 } }));
+        renderList();
+
+        expect(await screen.findByText("ჩატვირთვის პრობლემა")).toBeInTheDocument();
+        expect(screen.getByText("bad filter")).toBeInTheDocument();
+        expect(screen.queryByLabelText("შედეგი")).not.toBeInTheDocument();
+    });
+
     it("titles the columns", async () => {
         serve();
         renderList();
@@ -115,8 +132,10 @@ describe("CrmCalls", () => {
         renderList();
 
         const link = await firstCallLink();
-        const cells = within(link.closest("tr")!).getAllByRole("cell").map((c) => c.textContent);
-        expect(cells.slice(5)).toEqual(["", ""]);
+        const cells = within(link.closest("tr")!).getAllByRole("cell");
+        expect(cells.slice(5).map((c) => c.textContent)).toEqual(["", ""]);
+        //no conversation, no tooltip
+        expect(cells[5].querySelector("span")).toHaveAttribute("title", "");
     });
 
     it("opens the call from its date and offers a new one", async () => {
@@ -276,11 +295,17 @@ describe("CrmCalls", () => {
         const calls = serve();
         renderList();
         await firstCallLink();
-        const before = rowsRequests(calls).length;
 
         fireEvent.click(screen.getByText("საუბარი"));
+        //a request of the sortable column comes after any request the click above could start
+        fireEvent.click(screen.getByText("შედეგი", { selector: "th *, th" }));
 
-        expect(rowsRequests(calls)).toHaveLength(before);
+        await waitFor(() =>
+            expect(lastRowsRequest(calls).sortByFields).toEqual([{ fieldName: "answerTypeName", ascending: true }])
+        );
+        expect(rowsRequests(calls).flatMap((r) => r.sortByFields.map((s) => s.fieldName))).not.toContain(
+            "callConversation"
+        );
     });
 
     it("replaces the history entry when the filter changes", async () => {
