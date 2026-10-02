@@ -85,6 +85,8 @@ import CrmCalls from "./crmCalls/CrmCalls";
 import CrmCallEdit from "./crmCalls/CrmCallEdit";
 import WorkHours from "./workHours/WorkHours";
 import WorkHourEdit from "./workHours/WorkHourEdit";
+import Salary from "./salary/Salary";
+import SalaryEdit from "./salary/SalaryEdit";
 
 library.add(
     faCheckSquare,
@@ -245,6 +247,9 @@ const App: FC = () => {
                                 element={<WorkHourEdit />}
                             />
                             <Route path="workHourEdit" element={<WorkHourEdit />} />
+                            <Route path="salary" element={<Salary />} />
+                            <Route path="salaryEdit/:shId" element={<SalaryEdit />} />
+                            <Route path="salaryEdit" element={<SalaryEdit />} />
 
                             {/* Project AppRoutes finish */}
 
