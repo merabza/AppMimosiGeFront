@@ -116,6 +116,33 @@ describe("ReportView", () => {
         expect(screen.getByRole("table").querySelector("tfoot")).toBeNull();
     });
 
+    // the table scrolls in its own box; a report of more than 20 columns (r36) is marked wide for the landscape print
+    it.each([
+        [20, false],
+        [21, true],
+    ])("marks a report of %i columns as wide: %s", (count, wide) => {
+        const columns = Array.from({ length: count }, (_, index) => ({
+            name: `c${index}`,
+            caption: `${index}`,
+            type: "number" as const,
+        }));
+        render(
+            <ReportView
+                report={roomsReport({ columns, sections: [{ header: null, rows: [[1]], footer: null }] })}
+            />
+        );
+
+        const view = screen.getByTestId("reportView");
+        const table = screen.getByRole("table");
+        expect(view.className).toBe(wide ? "report-print-area report-print-area-wide" : "report-print-area");
+        expect(table.className).toBe(
+            wide
+                ? "report-table report-table-wide table table-sm table-striped table-bordered"
+                : "report-table table table-sm table-striped table-bordered"
+        );
+        expect(table.parentElement).toHaveClass("report-table-scroll");
+    });
+
     // a row shorter than the columns leaves the missing cells empty
     it("shows a short row with empty cells", () => {
         render(<ReportView report={roomsReport({ sections: [{ header: null, rows: [["R1"]], footer: null }] })} />);
