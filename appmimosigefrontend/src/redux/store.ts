@@ -33,6 +33,7 @@ import { depositsApi } from "./api/depositsApi";
 import { crmCallsApi } from "./api/crmCallsApi";
 import { workHoursApi } from "./api/workHoursApi";
 import { salaryApi } from "./api/salaryApi";
+import { reportsApi } from "./api/reportsApi";
 
 export const store = configureStore({
     reducer: {
@@ -54,6 +55,7 @@ export const store = configureStore({
         [crmCallsApi.reducerPath]: crmCallsApi.reducer,
         [workHoursApi.reducerPath]: workHoursApi.reducer,
         [salaryApi.reducerPath]: salaryApi.reducer,
+        [reportsApi.reducerPath]: reportsApi.reducer,
 
         //states - carcass
         alertState: alertReducer,
@@ -87,6 +89,7 @@ export const store = configureStore({
             crmCallsApi.middleware,
             workHoursApi.middleware,
             salaryApi.middleware,
+            reportsApi.middleware,
         ]),
 });
 

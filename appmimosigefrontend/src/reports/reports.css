@@ -1,0 +1,35 @@
+/* reports.css: რეპორტების გვერდი */
+
+.report-table td,
+.report-table th {
+    white-space: nowrap;
+}
+
+/* ბეჭდვისას მხოლოდ რეპორტის შედეგი ჩანს: მენიუები, ფილტრები და ღილაკები იმალება, შედეგი მთელ სიგანეზეა,
+   სვეტების სათაურები ყოველ გვერდზე მეორდება */
+@media print {
+    #sidebar,
+    .navbar,
+    .no-print {
+        display: none !important;
+    }
+
+    #content {
+        position: static !important;
+        width: 100% !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+    }
+
+    .report-table {
+        font-size: 10pt;
+    }
+
+    .report-table thead {
+        display: table-header-group;
+    }
+
+    .report-table tr {
+        page-break-inside: avoid;
+    }
+}
