@@ -196,6 +196,17 @@ describe("Deposits", () => {
         expect(screen.getByLabelText("თარიღამდე")).toHaveValue(defaultDateTo());
     });
 
+    // part 20: the year chosen in the top menu is the default
+    it("loads the year chosen in the top menu by default", async () => {
+        localStorage.setItem("selectedAcademicYearId", "10");
+        const calls = serve();
+        renderPage();
+
+        await screen.findByTestId("deposit-10");
+        expect(lastRowsParams(calls)).toEqual({ academicYearId: "10", maximum: "0", dateTo: defaultDateTo() });
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("10");
+    });
+
     it("shows a contract's columns in order", async () => {
         serve();
         renderPage("/deposits?academicYearId=&maximum=0&dateTo=2026-10-06&filter=");

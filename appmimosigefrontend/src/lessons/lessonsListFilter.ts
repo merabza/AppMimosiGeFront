@@ -3,8 +3,13 @@
 import type { IFilterField } from "../appcarcass/grid/GridViewTypes";
 import { todayDateInputValue } from "../studentContracts/dateFormat";
 
+//წლის ფილტრის "ყველა წელი"; ცარიელი მნიშვნელობა ნაგულისხმევი (გლობალური ან მიმდინარე) წელია
+export const allAcademicYears = "all";
+
 //სიის ფილტრი. ცარიელი მნიშვნელობა ფილტრის არქონას ნიშნავს; თარიღები "YYYY-MM-DD"-ია, ორივე ჩათვლით
 export interface ILessonsListFilter {
+    //ჯგუფის სასწავლო წელი (ნაწილი 20)
+    academicYearId: string;
     grpId: string;
     //მასწავლებელი ან შემცვლელი
     teacherContractId: string;
@@ -17,6 +22,7 @@ export interface ILessonsListFilter {
 type FilterKey = keyof ILessonsListFilter;
 
 const filterKeys: FilterKey[] = [
+    "academicYearId",
     "grpId",
     "teacherContractId",
     "dateFrom",
@@ -63,6 +69,7 @@ export function filterFromSearchParams(
 ): ILessonsListFilter {
     if (!filterKeys.some((key) => params.has(key)))
         return {
+            academicYearId: "",
             grpId: "",
             teacherContractId: "",
             ...currentWeek(now),
@@ -70,6 +77,7 @@ export function filterFromSearchParams(
             unfilled: false,
         };
     return {
+        academicYearId: params.get("academicYearId") ?? "",
         grpId: params.get("grpId") ?? "",
         teacherContractId: params.get("teacherContractId") ?? "",
         dateFrom: params.get("dateFrom") ?? "",
@@ -84,6 +92,7 @@ export function filterToSearchParams(
     filter: ILessonsListFilter
 ): URLSearchParams {
     return new URLSearchParams({
+        academicYearId: filter.academicYearId,
         grpId: filter.grpId,
         teacherContractId: filter.teacherContractId,
         dateFrom: filter.dateFrom,
@@ -93,11 +102,20 @@ export function filterToSearchParams(
     });
 }
 
+//ფილტრის წელი: ცარიელი ნაგულისხმევია, "ყველა" წლის გარეშე
+export function resolveAcademicYearId(filter: ILessonsListFilter, defaultAcademicYearId: number | null): string {
+    if (filter.academicYearId === allAcademicYears) return "";
+    if (filter.academicYearId === "") return defaultAcademicYearId?.toString() ?? "";
+    return filter.academicYearId;
+}
+
 //სიის ფილტრი GridView-ის filterFields-ად (სახელები backend-ის LessonsListQueryFactory-ისაა)
 export function buildLessonsFilterFields(
-    filter: ILessonsListFilter
+    filter: ILessonsListFilter,
+    defaultAcademicYearId: number | null = null
 ): IFilterField[] {
     return [
+        { fieldName: "academicYearId", value: resolveAcademicYearId(filter, defaultAcademicYearId) },
         { fieldName: "grpId", value: filter.grpId },
         { fieldName: "teacherContractId", value: filter.teacherContractId },
         { fieldName: "dateFrom", value: filter.dateFrom },

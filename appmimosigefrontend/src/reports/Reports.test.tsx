@@ -480,4 +480,138 @@ describe("Reports", () => {
             expect(screen.getByText("ვერ მოიძებნა")).toBeInTheDocument();
         });
     });
+
+    // a check report with the optional academic year (part 20): the global year by default, "all" without the year
+    describe("a check report with an academic year", () => {
+        const yearReport = {
+            key: "rYear",
+            title: "წლის შემოწმება",
+            description: null,
+            parameters: [{ name: "academicYearId", caption: "სასწავლო წელი", required: false }],
+        } as const;
+
+        async function openYearReport() {
+            const calls = mockFetch((call) => {
+                if (call.url === `${base}/catalog`)
+                    return {
+                        status: 200,
+                        body: {
+                            categories: [{ key: "checks", name: "შემოწმება", reportKeys: ["rYear"] }],
+                            reports: [yearReport],
+                        },
+                    };
+                if (call.url === `${base}/lookups`) return { status: 200, body: reportLookups };
+                if (call.url === `${testBaseUrl}/academicyears`)
+                    return {
+                        status: 200,
+                        body: {
+                            academicYears: [
+                                { id: 10, name: "2025-2026" },
+                                { id: 11, name: "2026-2027" },
+                            ],
+                            currentAcademicYearId: 11,
+                        },
+                    };
+                return { status: 200, body: roomsReport() };
+            });
+            renderPage("/reports?category=checks&report=rYear");
+            await screen.findByRole("heading", { name: "წლის შემოწმება" });
+            await waitFor(() => expect((screen.getByLabelText("სასწავლო წელი") as HTMLSelectElement).value).toBe("11"));
+            return calls;
+        }
+
+        async function viewedUrl(calls: FetchCall[]) {
+            fireEvent.click(viewButton());
+            await screen.findByTestId("reportView");
+            return calls.map((c) => c.url).filter((url) => url.startsWith(`${base}/rYear`));
+        }
+
+        it("sends the current year by default", async () => {
+            const calls = await openYearReport();
+
+            expect(await viewedUrl(calls)).toEqual([`${base}/rYear?academicYearId=11`]);
+        });
+
+        it("sends another chosen year", async () => {
+            const calls = await openYearReport();
+
+            fireEvent.change(screen.getByLabelText("სასწავლო წელი"), { target: { value: "10" } });
+
+            expect(await viewedUrl(calls)).toEqual([`${base}/rYear?academicYearId=10`]);
+            expect(location()).toContain("academicYearId=10");
+            expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("10");
+        });
+
+        it("sends no year for all years", async () => {
+            const calls = await openYearReport();
+
+            fireEvent.change(screen.getByLabelText("სასწავლო წელი"), { target: { value: "all" } });
+
+            expect(await viewedUrl(calls)).toEqual([`${base}/rYear`]);
+            expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("all");
+        });
+
+        // without a current (or chosen) year the check covers every year
+        it("checks every year when there is no current year", async () => {
+            const calls = mockFetch((call) => {
+                if (call.url === `${base}/catalog`)
+                    return {
+                        status: 200,
+                        body: {
+                            categories: [{ key: "checks", name: "შემოწმება", reportKeys: ["rYear"] }],
+                            reports: [yearReport],
+                        },
+                    };
+                if (call.url === `${base}/lookups`) return { status: 200, body: reportLookups };
+                if (call.url === `${testBaseUrl}/academicyears`)
+                    return {
+                        status: 200,
+                        body: { academicYears: [{ id: 11, name: "2026-2027" }], currentAcademicYearId: null },
+                    };
+                return { status: 200, body: roomsReport() };
+            });
+            renderPage("/reports?category=checks&report=rYear");
+            await waitFor(() => expect(calls.map((c) => c.url)).toContain(`${testBaseUrl}/academicyears`));
+
+            await waitFor(() =>
+                expect((screen.getByLabelText("სასწავლო წელი") as HTMLSelectElement).options).toHaveLength(2)
+            );
+            expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("all");
+            expect(await viewedUrl(calls)).toEqual([`${base}/rYear`]);
+        });
+
+        // the list of years is loaded only for a report with the year
+        it("loads no years for a report without the year", async () => {
+            const calls = serve();
+            renderPage();
+            await screen.findByRole("heading", { name: "ოთახების ცხრილი" });
+
+            fireEvent.click(viewButton());
+            await screen.findByTestId("reportView");
+
+            expect(calls.map((c) => c.url)).not.toContain(`${testBaseUrl}/academicyears`);
+        });
+
+        // a report without parameters has no year either
+        it("loads no years for a report without parameters", async () => {
+            const calls = mockFetch((call) => {
+                if (call.url === `${base}/catalog`)
+                    return {
+                        status: 200,
+                        body: {
+                            categories: [{ key: "checks", name: "შემოწმება", reportKeys: ["rNone"] }],
+                            reports: [{ key: "rNone", title: "უპარამეტრო შემოწმება", description: null, parameters: [] }],
+                        },
+                    };
+                return { status: 200, body: roomsReport() };
+            });
+            renderPage("/reports?category=checks&report=rNone");
+            await screen.findByRole("heading", { name: "უპარამეტრო შემოწმება" });
+
+            fireEvent.click(viewButton());
+            await screen.findByTestId("reportView");
+
+            expect(calls.map((c) => c.url)).not.toContain(`${testBaseUrl}/academicyears`);
+        });
+    });
 });

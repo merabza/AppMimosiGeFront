@@ -34,6 +34,7 @@ import {
     isDateRangeInvalid,
     type IPaymentsListFilter,
 } from "./paymentsListFilter";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 interface IGridState {
     offset: number;
@@ -103,6 +104,8 @@ const Payments: FC = () => {
     const canCheck = useCanCheckPayments();
     const { data: lookups, isLoading: lookupsLoading } =
         useGetPaymentFormLookupsQuery(undefined, { skip: !hasRight });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const [getRowsData, { data: rowsData, isFetching }] =
         useLazyGetPaymentsRowsDataQuery();
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
@@ -158,7 +161,7 @@ const Payments: FC = () => {
     const academicYearId =
         filter.academicYearId !== ""
             ? filter.academicYearId
-            : (lookups.currentAcademicYearId?.toString() ?? "");
+            : (defaultAcademicYearId?.toString() ?? "");
 
     return (
         <div>

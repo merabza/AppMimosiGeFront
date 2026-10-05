@@ -14,6 +14,7 @@ import type {
     IGroupStudentContractLookup,
 } from "../redux/types/groupsTypes";
 import { todayDateInputValue } from "../studentContracts/dateFormat";
+import { setSelectedAcademicYearId } from "../redux/slices/academicYearSlice";
 import GroupEdit from "./GroupEdit";
 
 const lookups: IGroupFormLookups = {
@@ -808,6 +809,54 @@ describe("GroupEdit", () => {
             students: [],
             dayTimePlaces: [],
         });
+    });
+
+    // part 20: a new group starts in the year chosen in the top menu
+    it("starts a new group in the year chosen in the top menu", async () => {
+        localStorage.setItem("selectedAcademicYearId", "10");
+        serve();
+        renderEditor("/editor");
+
+        await screen.findByLabelText("ჯგუფის კოდი");
+        expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("10");
+    });
+
+    // the form is filled once: a year chosen later in the top menu does not clear it
+    it("keeps the new group's input when a year is chosen in the top menu", async () => {
+        serve();
+        const store = createGroupsStore();
+        renderGroupsOnRoute(<GroupEdit />, store, "/editor", "/editor");
+        fireEvent.change(await screen.findByLabelText("ჯგუფის კოდი"), { target: { value: "1011" } });
+
+        act(() => {
+            store.dispatch(setSelectedAcademicYearId(10));
+        });
+        await flush();
+
+        expect(screen.getByLabelText("ჯგუფის კოდი")).toHaveValue("1011");
+        expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("11");
+    });
+
+    // the group query is skipped on a new form but still holds the group opened before
+    it("shows a new group without the lessons flag of the group opened before", async () => {
+        serve();
+        render(
+            <Provider store={createGroupsStore()}>
+                <MemoryRouter initialEntries={["/editor/7"]}>
+                    <Link to="/editor">new group</Link>
+                    <Routes>
+                        <Route path="/editor" element={<GroupEdit />} />
+                        <Route path="/editor/:grpId" element={<GroupEdit />} />
+                    </Routes>
+                </MemoryRouter>
+            </Provider>
+        );
+        await screen.findByLabelText("საჭიროებს გაკვეთილების დაზუსტებას");
+
+        fireEvent.click(screen.getByRole("link", { name: "new group" }));
+
+        await screen.findByText("ახალი ჯგუფი");
+        expect(screen.queryByLabelText("საჭიროებს გაკვეთილების დაზუსტებას")).not.toBeInTheDocument();
     });
 
     it("shows the server error and stays on the page", async () => {

@@ -21,6 +21,7 @@ import type { ILessonRow } from "../redux/types/lessonsTypes";
 import { formatDateTime } from "../studentContracts/dateFormat";
 import { lessonEditUrl, useHasLessonsRight } from "./lessonsMenu";
 import {
+    allAcademicYears,
     buildLessonsFilterFields,
     currentMonth,
     currentWeek,
@@ -29,6 +30,7 @@ import {
     isDateRangeInvalid,
     type ILessonsListFilter,
 } from "./lessonsListFilter";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 interface IGridState {
     offset: number;
@@ -81,6 +83,8 @@ const Lessons: FC = () => {
     const hasRight = useHasLessonsRight();
     const { data: lookups, isLoading: lookupsLoading } =
         useGetLessonFormLookupsQuery(undefined, { skip: !hasRight });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const [getRowsData, { data: rowsData, isFetching }] =
         useLazyGetLessonsRowsDataQuery();
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
@@ -100,13 +104,14 @@ const Lessons: FC = () => {
     const load = useCallback(
         (state: IGridState) => {
             gridState.current = state;
-            if (rangeInvalid) return;
+            //ნაგულისხმევი წელი ცნობარებით დგინდება, ამიტომ სია მათ შემდეგ იტვირთება
+            if (rangeInvalid || !lookups) return;
             getRowsData({
                 ...state,
-                filterFields: buildLessonsFilterFields(filter),
+                filterFields: buildLessonsFilterFields(filter, defaultAcademicYearId),
             });
         },
-        [getRowsData, filter, rangeInvalid]
+        [getRowsData, filter, rangeInvalid, lookups, defaultAcademicYearId]
     );
 
     //ფილტრის შეცვლისას სია პირველი გვერდიდან იტვირთება
@@ -184,6 +189,25 @@ const Lessons: FC = () => {
                     </Col>
                 </Row>
                 <Row className="mt-2">
+                    <Col sm="2">
+                        <Form.Label htmlFor="filterAcademicYear">სასწავლო წელი</Form.Label>
+                        <Form.Select
+                            id="filterAcademicYear"
+                            value={
+                                filter.academicYearId === ""
+                                    ? (defaultAcademicYearId?.toString() ?? allAcademicYears)
+                                    : filter.academicYearId
+                            }
+                            onChange={(e) => setFilter({ academicYearId: e.target.value })}
+                        >
+                            <option value={allAcademicYears}>ყველა</option>
+                            {lookups.academicYears.map((ay) => (
+                                <option key={ay.id} value={ay.id}>
+                                    {ay.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Col>
                     <Col sm="2">
                         <Form.Label htmlFor="filterDateFrom">თარიღიდან</Form.Label>
                         <Form.Control

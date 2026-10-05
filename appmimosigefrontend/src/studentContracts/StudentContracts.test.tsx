@@ -177,6 +177,8 @@ describe("StudentContracts", () => {
                 { fieldName: "academicYearId", value: "11" },
             ])
         );
+        // the grid asks for its rows as soon as it is shown: nothing goes out before the year is known
+        expect(rowsRequests(calls).map((r) => r.filterFields)).toEqual([[{ fieldName: "academicYearId", value: "11" }]]);
     });
 
     it("offers a link to a new contract", async () => {
@@ -214,10 +216,25 @@ describe("StudentContracts", () => {
         );
     });
 
+    // part 20: the year chosen in the top menu is the default
+    it("lists the contracts of the year chosen in the top menu", async () => {
+        localStorage.setItem("selectedAcademicYearId", "10");
+        const calls = serve();
+
+        renderList();
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.filterFields).toEqual([{ fieldName: "academicYearId", value: "10" }])
+        );
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("10");
+    });
+
     it("drops the year filter when all years are chosen", async () => {
         const calls = serve();
         renderList();
-        await screen.findByRole("link", { name: "6.007" });
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.filterFields).toEqual([{ fieldName: "academicYearId", value: "11" }])
+        );
 
         fireEvent.change(screen.getByLabelText("სასწავლო წელი"), {
             target: { value: "" },
@@ -226,6 +243,8 @@ describe("StudentContracts", () => {
         await waitFor(() =>
             expect(lastRowsRequest(calls)?.filterFields).toEqual([])
         );
+        // the choice stays: the default year fills only an empty filter
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("");
     });
 
     it("lists every year when there is no current one", async () => {

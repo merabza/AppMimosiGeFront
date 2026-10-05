@@ -16,7 +16,11 @@ export const reportParameterNames: ReportParameterName[] = [
     "teacherId",
     "courseId",
     "studentId",
+    "academicYearId",
 ];
+
+//წლის პარამეტრის "ყველა წელი"; ცარიელი მნიშვნელობა ნაგულისხმევი (გლობალური ან მიმდინარე) წელია
+export const allAcademicYears = "all";
 
 //გვერდის მდგომარეობა ბმულში: კატეგორია, რეპორტი და ფილტრები (ცარიელი გასაღები = პირველი)
 export interface IReportsPageState {
@@ -33,7 +37,19 @@ export function defaultParameters(now: Date = new Date()): IReportParameters {
         teacherId: "",
         courseId: "",
         studentId: "",
+        academicYearId: "",
     };
+}
+
+//რეპორტისთვის გასაგზავნი პარამეტრები: ცარიელი წელი ნაგულისხმევია, "ყველა" კი პარამეტრის გარეშე
+export function resolveAcademicYear(
+    parameters: IReportParameters,
+    defaultAcademicYearId: number | null
+): IReportParameters {
+    let academicYearId = parameters.academicYearId;
+    if (academicYearId === allAcademicYears) academicYearId = "";
+    else if (academicYearId === "") academicYearId = defaultAcademicYearId?.toString() ?? "";
+    return { ...parameters, academicYearId };
 }
 
 //ბმულში არარსებული თარიღი ნაგულისხმევია, ცარიელი თარიღი კი ცარიელი რჩება

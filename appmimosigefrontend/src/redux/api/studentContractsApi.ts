@@ -13,6 +13,7 @@ import type {
     ILookupItem,
     IStudentContract,
     IStudentContractFormLookups,
+    IStudentContractNextNumber,
     IStudentContractRequest,
     IStudentContractsRowsData,
 } from "../types/studentContractsTypes";
@@ -75,6 +76,15 @@ export const studentContractsApi = createApi({
             onQueryStarted: (_, { dispatch, queryFulfilled }) =>
                 reportLoadError(dispatch, queryFulfilled),
         }),
+        //ახალი კონტრაქტის ნომერი არჩეული წლისთვის; ყოველ ჯერზე ახლიდან, რომ სხვის მიერ შექმნილი ნომერი არ გამეორდეს
+        getStudentContractNextNumber: builder.query<IStudentContractNextNumber, number>({
+            query: (academicYearId) => ({
+                url: `${baseUrl}/nextnumber?academicYearId=${academicYearId}`,
+            }),
+            keepUnusedDataFor: 0,
+            onQueryStarted: (_, { dispatch, queryFulfilled }) =>
+                reportLoadError(dispatch, queryFulfilled),
+        }),
         getStudentContract: builder.query<IStudentContract, number>({
             query: (scId) => ({ url: `${baseUrl}/${scId}` }),
             //დახურული კონტრაქტი ქეშში არ რჩება: ხელახლა გახსნისას ფორმა ქეშის ძველი მონაცემით არ უნდა შეივსოს
@@ -131,6 +141,7 @@ export const {
     useGetStudentContractFormLookupsQuery,
     useLazySearchHumansQuery,
     useGetStudentContractQuery,
+    useGetStudentContractNextNumberQuery,
     useCreateStudentContractMutation,
     useUpdateStudentContractMutation,
     useDeleteStudentContractMutation,

@@ -7,6 +7,7 @@ import { Provider } from "react-redux";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import alertReducer from "../appcarcass/redux/slices/alertSlice";
+import academicYearReducer from "../redux/slices/academicYearSlice";
 import appParametersReducer from "../appcarcass/redux/slices/appParametersSlice";
 import navMenuReducer, {
     setMenuLoading,
@@ -29,6 +30,8 @@ export function createGroupsStore(
         reducer: {
             [groupsApi.reducerPath]: groupsApi.reducer,
             [lessonGeneratorApi.reducerPath]: lessonGeneratorApi.reducer,
+            //the global academic year (part 20): a test chooses one in localStorage before it creates the store
+            academicYearState: academicYearReducer,
             alertState: alertReducer,
             appParametersState: appParametersReducer,
             navMenuState: navMenuReducer,

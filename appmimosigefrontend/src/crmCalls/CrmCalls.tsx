@@ -27,6 +27,7 @@ import {
     shortenText,
     type ICrmCallsListFilter,
 } from "./crmCallsListFilter";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 interface IGridState {
     offset: number;
@@ -90,6 +91,8 @@ const CrmCalls: FC = () => {
     const hasRight = useHasCrmCallsRight();
     const { data: lookups, isLoading: lookupsLoading } =
         useGetCrmCallFormLookupsQuery(undefined, { skip: !hasRight });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const [getRowsData, { data: rowsData, isFetching }] =
         useLazyGetCrmCallsRowsDataQuery();
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
@@ -141,7 +144,7 @@ const CrmCalls: FC = () => {
     const academicYearId =
         filter.academicYearId !== ""
             ? filter.academicYearId
-            : (lookups.currentAcademicYearId?.toString() ?? "");
+            : (defaultAcademicYearId?.toString() ?? "");
 
     return (
         <div>

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { periodReport, reportCatalog, reportInfo } from "../testUtils/reportsTestStore";
 import type { IReportParameters } from "../redux/types/reportsTypes";
 import {
+    allAcademicYears,
     defaultParameters,
     excelFileName,
     formatCell,
@@ -12,6 +13,7 @@ import {
     missingRequiredCaption,
     reportQueryString,
     reportsOfCategory,
+    resolveAcademicYear,
     selectedOrFirst,
     stateFromSearchParams,
     stateToSearchParams,
@@ -21,7 +23,15 @@ import {
 const now = new Date(2026, 9, 2, 15, 30);
 
 function parameters(changes: Partial<IReportParameters> = {}): IReportParameters {
-    return { startDate: "", endDate: "", teacherId: "", courseId: "", studentId: "", ...changes };
+    return {
+        startDate: "",
+        endDate: "",
+        teacherId: "",
+        courseId: "",
+        studentId: "",
+        academicYearId: "",
+        ...changes,
+    };
 }
 
 describe("defaultParameters", () => {
@@ -48,7 +58,14 @@ describe("stateFromSearchParams", () => {
         expect(stateFromSearchParams(params, now)).toEqual({
             categoryKey: "checks",
             reportKey: "rPeriod",
-            parameters: { startDate: "", endDate: "2026-09-30", teacherId: "5", courseId: "3", studentId: "20" },
+            parameters: {
+                startDate: "",
+                endDate: "2026-09-30",
+                teacherId: "5",
+                courseId: "3",
+                studentId: "20",
+                academicYearId: "",
+            },
         });
     });
 });
@@ -62,13 +79,14 @@ describe("stateToSearchParams", () => {
                 parameters: parameters({ endDate: "2026-10-02" }),
             }).toString()
         ).toBe(
-            "category=schedule&report=r03RoomsAgenda&startDate=&endDate=2026-10-02&teacherId=&courseId=&studentId="
+            "category=schedule&report=r03RoomsAgenda&startDate=&endDate=2026-10-02&teacherId=&courseId=&studentId=" +
+                "&academicYearId="
         );
     });
 
     it("leaves out an empty category and report", () => {
         expect(stateToSearchParams({ categoryKey: "", reportKey: "", parameters: parameters() }).toString()).toBe(
-            "startDate=&endDate=&teacherId=&courseId=&studentId="
+            "startDate=&endDate=&teacherId=&courseId=&studentId=&academicYearId="
         );
     });
 
@@ -222,5 +240,25 @@ describe("isNumericColumn", () => {
         expect(isNumericColumn("wholeNumber")).toBe(true);
         expect(isNumericColumn("time")).toBe(false);
         expect(isNumericColumn("text")).toBe(false);
+    });
+});
+
+// the check reports' year (part 20): empty is the default (global or current) year, "all" no year
+describe("resolveAcademicYear", () => {
+    it.each([
+        ["", 11, "11"],
+        ["", null, ""],
+        [allAcademicYears, 11, ""],
+        ["10", 11, "10"],
+    ])("the parameter %j with the default %j is %j", (academicYearId, defaultAcademicYearId, expected) => {
+        expect(resolveAcademicYear(parameters({ academicYearId }), defaultAcademicYearId)).toEqual(
+            parameters({ academicYearId: expected })
+        );
+    });
+
+    it("keeps the other parameters", () => {
+        expect(resolveAcademicYear(parameters({ endDate: "2026-10-02", teacherId: "5" }), 11)).toEqual(
+            parameters({ endDate: "2026-10-02", teacherId: "5", academicYearId: "11" })
+        );
     });
 });

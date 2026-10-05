@@ -87,6 +87,7 @@ import WorkHours from "./workHours/WorkHours";
 import WorkHourEdit from "./workHours/WorkHourEdit";
 import Salary from "./salary/Salary";
 import SalaryEdit from "./salary/SalaryEdit";
+import NewAcademicYear from "./academicYear/NewAcademicYear";
 import Reports from "./reports/Reports";
 
 library.add(
@@ -251,6 +252,7 @@ const App: FC = () => {
                             <Route path="salary" element={<Salary />} />
                             <Route path="salaryEdit/:shId" element={<SalaryEdit />} />
                             <Route path="salaryEdit" element={<SalaryEdit />} />
+                            <Route path="newAcademicYear" element={<NewAcademicYear />} />
                             <Route path="reports" element={<Reports />} />
 
                             {/* Project AppRoutes finish */}

@@ -34,6 +34,7 @@ import {
     toDepositsRequest,
     type IDepositsFilter,
 } from "./depositsFilter";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 //გადაანგარიშების შედეგი ერთ ხაზად
 function recountSummary(result: IBalancesRecount): string {
@@ -63,6 +64,8 @@ const Deposits: FC = () => {
     const [callContract, setCallContract] = useState<ICrmCallDialogContract | null>(null);
     const { data: lookups, isLoading: lookupsLoading } =
         useGetDepositsFormLookupsQuery(undefined, { skip: !hasRight });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const [recount, { data: recountResult }] = useRecountBalancesMutation();
     const [fullRecount, { data: fullRecountResult, isLoading: fullRecounting }] =
         useFullRecountBalancesMutation();
@@ -72,10 +75,10 @@ const Deposits: FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const filter = useMemo(() => filterFromSearchParams(searchParams), [searchParams]);
-    //სია გადაანგარიშების შემდეგ იტვირთება; მიმდინარე წელს ცნობარები იძლევა
+    //სია გადაანგარიშების შემდეგ იტვირთება; ნაგულისხმევი წელი გლობალურად არჩეული ან მიმდინარეა
     const { data: deposits, isFetching, refetch } = useGetDepositsQuery(
         hasRight && recounted && lookups
-            ? toDepositsRequest(filter, lookups.currentAcademicYearId)
+            ? toDepositsRequest(filter, defaultAcademicYearId)
             : skipToken
     );
 
@@ -117,7 +120,7 @@ const Deposits: FC = () => {
                             id="filterAcademicYear"
                             value={
                                 filter.academicYearId === ""
-                                    ? (lookups.currentAcademicYearId?.toString() ?? allAcademicYears)
+                                    ? (defaultAcademicYearId?.toString() ?? allAcademicYears)
                                     : filter.academicYearId
                             }
                             onChange={(e) => setFilter({ academicYearId: e.target.value })}

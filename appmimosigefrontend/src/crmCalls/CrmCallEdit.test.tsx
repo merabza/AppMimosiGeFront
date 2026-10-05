@@ -1,10 +1,11 @@
 //CrmCallEdit.test.tsx
 
-import { createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { setAlertApiMutationError } from "../appcarcass/redux/slices/alertSlice";
+import { setSelectedAcademicYearId } from "../redux/slices/academicYearSlice";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import { requestedYear } from "../testUtils/paymentsTestStore";
@@ -72,6 +73,31 @@ describe("CrmCallEdit", () => {
             expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("11");
             expect(studentInput()).toHaveValue("");
             expect(screen.queryByRole("button", { name: /წაშლა/ })).not.toBeInTheDocument();
+        });
+
+        // part 20: a new call starts in the year chosen in the top menu
+        it("starts in the year chosen in the top menu", async () => {
+            localStorage.setItem("selectedAcademicYearId", "10");
+            serve();
+            renderEditor("/crmCallEdit");
+
+            expect(await screen.findByText("ახალი ზარი")).toBeInTheDocument();
+            expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("10");
+        });
+
+        // the form is filled once: a year chosen later in the top menu does not clear it
+        it("keeps what was typed when a year is chosen in the top menu", async () => {
+            serve();
+            const store = renderEditor("/crmCallEdit");
+            await screen.findByText("ახალი ზარი");
+            fireEvent.change(field("საუბრის შინაარსი"), { target: { value: "will pay" } });
+
+            act(() => {
+                store.dispatch(setSelectedAcademicYearId(10));
+            });
+
+            expect(field("საუბრის შინაარსი")).toHaveValue("will pay");
+            expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("11");
         });
 
         it("creates the call and returns to the filtered list", async () => {

@@ -24,6 +24,7 @@ import {
 } from "./studentContractsMenu";
 import { formatDate } from "./dateFormat";
 import { buildFilterFields } from "./studentContractsListFilter";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 interface IGridState {
     offset: number;
@@ -82,6 +83,8 @@ const StudentContracts: FC = () => {
     const hasRight = useHasStudentContractsRight();
     const { data: lookups, isLoading: lookupsLoading } =
         useGetStudentContractFormLookupsQuery(undefined, { skip: !hasRight });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const [getRowsData, { data: rowsData, isFetching }] =
         useLazyGetStudentContractsRowsDataQuery();
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
@@ -98,8 +101,8 @@ const StudentContracts: FC = () => {
 
     useEffect(() => {
         if (lookups && academicYearId === null)
-            setAcademicYearId(lookups.currentAcademicYearId?.toString() ?? "");
-    }, [lookups, academicYearId]);
+            setAcademicYearId(defaultAcademicYearId?.toString() ?? "");
+    }, [lookups, defaultAcademicYearId, academicYearId]);
 
     const load = useCallback(
         (state: IGridState) => {

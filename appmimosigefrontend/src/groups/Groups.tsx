@@ -26,6 +26,7 @@ import { formatDate } from "../studentContracts/dateFormat";
 import { groupEditRoute, useHasGroupsRight } from "./groupsMenu";
 import { buildGroupsFilterFields, type IGroupsListFilter } from "./groupsListFilter";
 import GroupsLessonsGenerator from "../lessonGenerator/GroupsLessonsGenerator";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 interface IGridState {
     offset: number;
@@ -134,6 +135,8 @@ const Groups: FC = () => {
     const hasRight = useHasGroupsRight();
     const { data: lookups, isLoading: lookupsLoading } =
         useGetGroupFormLookupsQuery(undefined, { skip: !hasRight });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const [getRowsData, { data: rowsData, isFetching }] =
         useLazyGetGroupsRowsDataQuery();
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
@@ -162,9 +165,9 @@ const Groups: FC = () => {
         if (lookups && filter.academicYearId === null)
             setFilter((f) => ({
                 ...f,
-                academicYearId: lookups.currentAcademicYearId?.toString() ?? "",
+                academicYearId: defaultAcademicYearId?.toString() ?? "",
             }));
-    }, [lookups, filter.academicYearId]);
+    }, [lookups, defaultAcademicYearId, filter.academicYearId]);
 
     const load = useCallback(
         (state: IGridState) => {

@@ -2,12 +2,14 @@
 
 import { describe, expect, it } from "vitest";
 import {
+    allAcademicYears,
     buildLessonsFilterFields,
     currentMonth,
     currentWeek,
     filterFromSearchParams,
     filterToSearchParams,
     isDateRangeInvalid,
+    resolveAcademicYearId,
     type ILessonsListFilter,
 } from "./lessonsListFilter";
 
@@ -15,6 +17,7 @@ import {
 const now = new Date(2026, 9, 1, 13, 30);
 
 const emptyFilter: ILessonsListFilter = {
+    academicYearId: "",
     grpId: "",
     teacherContractId: "",
     dateFrom: "",
@@ -71,6 +74,7 @@ describe("filterFromSearchParams", () => {
                 now
             )
         ).toEqual({
+            academicYearId: "",
             grpId: "7",
             teacherContractId: "3",
             dateFrom: "2026-09-01",
@@ -109,7 +113,7 @@ describe("filterToSearchParams", () => {
         const params = filterToSearchParams(filter);
 
         expect(params.toString()).toBe(
-            "grpId=7&teacherContractId=&dateFrom=&dateTo=&lessonStatusId=&unfilled=true"
+            "academicYearId=&grpId=7&teacherContractId=&dateFrom=&dateTo=&lessonStatusId=&unfilled=true"
         );
         expect(filterFromSearchParams(params, now)).toEqual(filter);
     });
@@ -123,6 +127,7 @@ describe("buildLessonsFilterFields", () => {
     it("sends the filled filters with the backend names", () => {
         expect(
             buildLessonsFilterFields({
+                academicYearId: "",
                 grpId: "7",
                 teacherContractId: "3",
                 dateFrom: "2026-09-28",
@@ -154,5 +159,32 @@ describe("isDateRangeInvalid", () => {
         ["2026-10-02", "", false],
     ])("from %s to %s: %s", (dateFrom, dateTo, expected) => {
         expect(isDateRangeInvalid({ ...emptyFilter, dateFrom, dateTo })).toBe(expected);
+    });
+});
+
+// the year of the lesson's group (part 20): empty is the default (global or current) year, "all" no year
+describe("resolveAcademicYearId", () => {
+    it.each([
+        ["", 11, "11"],
+        ["", null, ""],
+        [allAcademicYears, 11, ""],
+        ["10", 11, "10"],
+    ])("the filter %j with the default %j is %j", (academicYearId, defaultAcademicYearId, expected) => {
+        expect(resolveAcademicYearId({ ...emptyFilter, academicYearId }, defaultAcademicYearId)).toBe(expected);
+    });
+
+    it("sends the resolved year first", () => {
+        expect(buildLessonsFilterFields({ ...emptyFilter, grpId: "7" }, 11)).toEqual([
+            { fieldName: "academicYearId", value: "11" },
+            { fieldName: "grpId", value: "7" },
+        ]);
+        expect(buildLessonsFilterFields({ ...emptyFilter, academicYearId: allAcademicYears }, 11)).toEqual([]);
+    });
+
+    it("reads and writes the year in the address", () => {
+        const filter = filterFromSearchParams(new URLSearchParams("academicYearId=all"), now);
+
+        expect(filter.academicYearId).toBe(allAcademicYears);
+        expect(filterToSearchParams(filter).get("academicYearId")).toBe(allAcademicYears);
     });
 });

@@ -94,6 +94,49 @@ describe("studentContractsApi", () => {
         expect(result.data).toEqual({ scId: 7 });
     });
 
+    // part 20: the next free contract number of a year
+    it("loads the next free number of a year", async () => {
+        const calls = mockFetch(() => ({ status: 200, body: { contractNumber: "7.001" } }));
+        const store = createStudentContractsStore();
+
+        const result = await store.dispatch(
+            studentContractsApi.endpoints.getStudentContractNextNumber.initiate(12)
+        );
+
+        expect(calls.map((c) => [c.method, c.url])).toEqual([["GET", `${base}/nextnumber?academicYearId=12`]]);
+        expect(result.data).toEqual({ contractNumber: "7.001" });
+    });
+
+    // the number is not kept: another user may have taken it, so the form asks again every time
+    it("loads the next free number again after the form was closed", async () => {
+        const calls = mockFetch(() => ({ status: 200, body: { contractNumber: "7.001" } }));
+        const store = createStudentContractsStore();
+        const first = store.dispatch(studentContractsApi.endpoints.getStudentContractNextNumber.initiate(12));
+        await first;
+
+        first.unsubscribe();
+        await waitFor(() =>
+            expect(
+                studentContractsApi.endpoints.getStudentContractNextNumber.select(12)(store.getState())
+                    .isUninitialized
+            ).toBe(true)
+        );
+        await store.dispatch(studentContractsApi.endpoints.getStudentContractNextNumber.initiate(12));
+
+        expect(calls).toHaveLength(2);
+    });
+
+    it("writes a failed next number into the ApiLoad alerts", async () => {
+        mockFetch(() => serverError);
+        const store = createStudentContractsStore();
+
+        await store.dispatch(studentContractsApi.endpoints.getStudentContractNextNumber.initiate(12));
+
+        expect(store.getState().alertState.alert.ApiLoad).toEqual([
+            { errorCode: "StudentContractIsInUse", errorMessage: "in use" },
+        ]);
+    });
+
     // a closed contract is dropped from the cache, so opening it again always loads it from the server
     it("loads a contract again when it is opened after being closed", async () => {
         const calls = mockFetch(() => ({ status: 200, body: { scId: 7 } }));

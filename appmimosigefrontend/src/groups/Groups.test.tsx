@@ -256,6 +256,23 @@ describe("Groups", () => {
         );
     });
 
+    // part 20: the year chosen in the top menu is the default
+    it("lists the groups of the year chosen in the top menu", async () => {
+        localStorage.setItem("selectedAcademicYearId", "10");
+        const calls = serve();
+
+        renderList();
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls)?.filterFields).toEqual([
+                { fieldName: "findMethod", value: "group" },
+                { fieldName: "academicYearId", value: "10" },
+                { fieldName: "state", value: "active" },
+            ])
+        );
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("10");
+    });
+
     it("lists the groups of every year when there is no current year", async () => {
         const calls = mockFetch((call) =>
             call.url.includes("/formlookups")

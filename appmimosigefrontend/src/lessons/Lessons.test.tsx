@@ -62,7 +62,9 @@ describe("Lessons", () => {
 
         expect(await screen.findByText("30.09.2026 15:00")).toBeInTheDocument();
         const week = currentWeek();
+        //the year is the current one of the lookups (part 20)
         expect(lastRowsRequest(calls).filterFields).toEqual([
+            { fieldName: "academicYearId", value: "11" },
             { fieldName: "dateFrom", value: week.dateFrom },
             { fieldName: "dateTo", value: week.dateTo },
         ]);
@@ -109,9 +111,68 @@ describe("Lessons", () => {
         renderList("/lessons?grpId=7&dateFrom=&dateTo=");
 
         await screen.findByText("30.09.2026 15:00");
-        expect(lastRowsRequest(calls).filterFields).toEqual([{ fieldName: "grpId", value: "7" }]);
+        expect(lastRowsRequest(calls).filterFields).toEqual([
+            { fieldName: "academicYearId", value: "11" },
+            { fieldName: "grpId", value: "7" },
+        ]);
         expect(screen.getByLabelText("ჯგუფი")).toHaveValue("7");
         expect(screen.getByLabelText("თარიღიდან")).toHaveValue("");
+    });
+
+    // the default year comes with the lookups: no list is asked before them (it would have no year)
+    it("loads the list only after the lookups give the year", async () => {
+        let answerLookups: (reply: { status: number; body: unknown }) => void = () => {};
+        const calls = mockFetch((call) => {
+            if (call.url.includes("/formlookups"))
+                return new Promise((resolve) => {
+                    answerLookups = resolve;
+                });
+            return { status: 200, body: { allRowsCount: 1, offset: 0, rows: [lessonRow] } };
+        });
+        renderList();
+        await waitFor(() => expect(calls.some((c) => c.url.includes("/formlookups"))).toBe(true));
+
+        answerLookups({ status: 200, body: lessonLookups });
+
+        await screen.findByText("30.09.2026 15:00");
+        //one request, and it has the year: none was sent while the lookups loaded
+        const requests = calls.filter((c) => c.url.includes("/lessons/rowsdata"));
+        expect(requests).toHaveLength(1);
+        expect(decodeFilterSortRequest(requests[0].url).filterFields[0]).toEqual({
+            fieldName: "academicYearId",
+            value: "11",
+        });
+    });
+
+    // without a current (or chosen) year the list shows every year
+    it("lists every year when there is no current year", async () => {
+        const calls = mockFetch((call) => {
+            if (call.url.includes("/formlookups"))
+                return { status: 200, body: { ...lessonLookups, currentAcademicYearId: null } };
+            return { status: 200, body: { allRowsCount: 1, offset: 0, rows: [lessonRow] } };
+        });
+        renderList();
+
+        await screen.findByText("30.09.2026 15:00");
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("all");
+        expect(filterValue(calls, "academicYearId")).toBeUndefined();
+    });
+
+    // part 20: the year of the lesson's group; "all" sends no year
+    it("filters by the academic year and lists all years without it", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByText("30.09.2026 15:00");
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("11");
+
+        fireEvent.change(screen.getByLabelText("სასწავლო წელი"), { target: { value: "10" } });
+        await waitFor(() => expect(filterValue(calls, "academicYearId")).toBe("10"));
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("10");
+
+        fireEvent.change(screen.getByLabelText("სასწავლო წელი"), { target: { value: "all" } });
+        await waitFor(() => expect(filterValue(calls, "academicYearId")).toBeUndefined());
+        expect(screen.getByTestId("location").textContent).toContain("academicYearId=all");
+        expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("all");
     });
 
     it.each([

@@ -1,12 +1,13 @@
 //PaymentEdit.test.tsx
 
-import { createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import { setAlertApiMutationError } from "../appcarcass/redux/slices/alertSlice";
+import { setSelectedAcademicYearId } from "../redux/slices/academicYearSlice";
 import LocationProbe from "../testUtils/LocationProbe";
 import {
     createPaymentsStore,
@@ -70,6 +71,31 @@ describe("PaymentEdit", () => {
             expect(field("დოკუმენტი")).toHaveValue("");
             expect(field("ბანკი / გადახდის სახე")).toHaveValue("");
             expect(screen.queryByRole("button", { name: /წაშლა/ })).not.toBeInTheDocument();
+        });
+
+        // part 20: a new payment starts in the year chosen in the top menu
+        it("starts in the year chosen in the top menu", async () => {
+            localStorage.setItem("selectedAcademicYearId", "10");
+            serve();
+            renderEditor("/paymentEdit");
+
+            expect(await screen.findByText("ახალი გადახდა")).toBeInTheDocument();
+            expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("10");
+        });
+
+        // the form is filled once: a year chosen later in the top menu does not clear it
+        it("keeps what was typed when a year is chosen in the top menu", async () => {
+            serve();
+            const store = renderEditor("/paymentEdit");
+            await screen.findByText("ახალი გადახდა");
+            fireEvent.change(field("დოკუმენტი"), { target: { value: "transfer" } });
+
+            act(() => {
+                store.dispatch(setSelectedAcademicYearId(10));
+            });
+
+            expect(field("დოკუმენტი")).toHaveValue("transfer");
+            expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("11");
         });
 
         it("creates the payment and returns to the filtered list", async () => {

@@ -8,6 +8,7 @@ import { useAppDispatch } from "./appcarcass/redux/hooks";
 import { toggleactive } from "./appcarcass/redux/slices/navMenuSlice";
 import RightsTopNavMenu from "./appcarcass/rights/RightsTopNavMenu";
 import ProfileTopNavMenu from "./appcarcass/user/ProfileTopNavMenu";
+import AcademicYearSelector from "./academicYear/AcademicYearSelector";
 import type { FC } from "react";
 
 const TopNavMenu: FC = () => {
@@ -45,6 +46,8 @@ const TopNavMenu: FC = () => {
                     <Route path="/profile" element={<ProfileTopNavMenu />} />
                     {/* Project */}
                 </Routes>
+                {/* Project: გლობალური სასწავლო წელი ყველა გვერდზე (ნაწილი 20) */}
+                <AcademicYearSelector />
             </Navbar.Collapse>
         </Navbar>
     );

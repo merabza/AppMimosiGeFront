@@ -7,6 +7,7 @@ import { Provider } from "react-redux";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import alertReducer from "../appcarcass/redux/slices/alertSlice";
+import academicYearReducer from "../redux/slices/academicYearSlice";
 import appParametersReducer from "../appcarcass/redux/slices/appParametersSlice";
 import navMenuReducer, {
     setMenuLoading,
@@ -26,6 +27,8 @@ export function createLessonsStore(menu: MenuState = "withRight") {
     const store = configureStore({
         reducer: {
             [lessonsApi.reducerPath]: lessonsApi.reducer,
+            //the global academic year (part 20): a test chooses one in localStorage before it creates the store
+            academicYearState: academicYearReducer,
             alertState: alertReducer,
             appParametersState: appParametersReducer,
             navMenuState: navMenuReducer,
@@ -84,6 +87,11 @@ export const lessonLookups: ILessonFormLookups = {
         { id: 1, name: "არ გაუქმებულა" },
         { id: 2, name: "გაუქმდა" },
         { id: 3, name: "გაუქმდა მასწავლებლისგან დამოუკიდებელი მიზეზით" },
+    ],
+    currentAcademicYearId: 11,
+    academicYears: [
+        { id: 10, name: "2025-2026" },
+        { id: 11, name: "2026-2027" },
     ],
 };
 

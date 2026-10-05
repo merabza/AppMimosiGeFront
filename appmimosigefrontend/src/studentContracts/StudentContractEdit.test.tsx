@@ -1,9 +1,10 @@
 //StudentContractEdit.test.tsx
 
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { useNavigate } from "react-router-dom";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { Provider } from "react-redux";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
+import { mockFetch, testBaseUrl, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import {
     createStudentContractsStore,
     renderOnRoute,
@@ -15,6 +16,7 @@ import type {
     IStudentContractFormLookups,
 } from "../redux/types/studentContractsTypes";
 import { studentContractsApi } from "../redux/api/studentContractsApi";
+import { setSelectedAcademicYearId } from "../redux/slices/academicYearSlice";
 import StudentContractEdit from "./StudentContractEdit";
 import { todayDateInputValue } from "./dateFormat";
 
@@ -83,6 +85,9 @@ function serve(replies: Replies = {}): FetchCall[] {
         if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
         if (call.url.includes("/humans"))
             return { status: 200, body: [{ id: 3, name: "Gamma Gia" }] };
+        //the next free number of the year (part 20)
+        if (call.url.includes("/nextnumber"))
+            return { status: 200, body: { contractNumber: call.url.endsWith("=10") ? "5.173" : "6.132" } };
         if (call.method === "GET") {
             const reply = contracts[call.url.split("/").pop()!] ?? { status: 404, body: {} };
             return typeof reply === "function" ? reply() : reply;
@@ -114,6 +119,22 @@ function renderEditor(
         store,
         path,
         url
+    );
+}
+
+// the new and the edit route share the mounted editor, as in the app
+function renderNewAndExisting(url: string) {
+    render(
+        <Provider store={createStudentContractsStore()}>
+            <MemoryRouter initialEntries={[url]}>
+                <Routes>
+                    <Route path="/editor" element={<StudentContractEdit />} />
+                    <Route path="/editor/:scId" element={<StudentContractEdit />} />
+                </Routes>
+                <GoTo to="/editor/7" />
+                <GoTo to="/editor" />
+            </MemoryRouter>
+        </Provider>
     );
 }
 
@@ -160,6 +181,8 @@ describe("StudentContractEdit", () => {
         renderEditor("/editor");
 
         expect(await screen.findByText("ახალი მოსწავლის კონტრაქტი")).toBeInTheDocument();
+        // the number comes with a second request, after the lookups
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
         await flush();
         expect(screen.getByLabelText("თარიღი")).toHaveValue(todayDateInputValue());
         expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("11");
@@ -172,8 +195,146 @@ describe("StudentContractEdit", () => {
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(saveButton()).toBeEnabled();
         expect(saveButton()).toHaveTextContent("შექმნა");
-        // a new contract has nothing to load
-        expect(calls.filter((c) => c.method === "GET" && !c.url.includes("/formlookups"))).toHaveLength(0);
+        // a new contract loads only the next free number of its year
+        expect(
+            calls.filter((c) => c.method === "GET" && !c.url.includes("/formlookups")).map((c) => c.url)
+        ).toEqual([`${testBaseUrl}/studentcontracts/nextnumber?academicYearId=11`]);
+    });
+
+    // part 20: a new contract gets the next free number of its year until the user types one
+    it("starts a new contract in the year chosen in the top menu", async () => {
+        localStorage.setItem("selectedAcademicYearId", "10");
+        const calls = serve();
+        renderEditor("/editor");
+        await screen.findByText("ახალი მოსწავლის კონტრაქტი");
+
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("5.173"));
+        expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("10");
+        expect(calls.filter((c) => c.url.includes("/nextnumber")).map((c) => c.url.split("?")[1])).toEqual([
+            "academicYearId=10",
+        ]);
+    });
+
+    it("fills the next free number of the chosen year", async () => {
+        const calls = serve();
+        renderEditor("/editor");
+        await screen.findByText("ახალი მოსწავლის კონტრაქტი");
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
+
+        fireEvent.change(screen.getByLabelText("სასწ. წელი"), { target: { value: "10" } });
+
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("5.173"));
+        expect(calls.filter((c) => c.url.includes("/nextnumber")).map((c) => c.url.split("?")[1])).toEqual([
+            "academicYearId=11",
+            "academicYearId=10",
+        ]);
+    });
+
+    it("keeps a number the user typed", async () => {
+        const calls = serve();
+        renderEditor("/editor");
+        await screen.findByText("ახალი მოსწავლის კონტრაქტი");
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
+
+        fireEvent.change(screen.getByLabelText("კ. N"), { target: { value: "6.200" } });
+        fireEvent.change(screen.getByLabelText("სასწ. წელი"), { target: { value: "10" } });
+        await flush();
+
+        expect(screen.getByLabelText("კ. N")).toHaveValue("6.200");
+        expect(calls.filter((c) => c.url.includes("/nextnumber"))).toHaveLength(1);
+    });
+
+    // a new form asks for the number again, even after a number was typed on an earlier new form of this editor
+    it("fills the number again when the editor starts a new contract after another one", async () => {
+        serve();
+        renderNewAndExisting("/editor");
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
+        fireEvent.change(screen.getByLabelText("კ. N"), { target: { value: "6.200" } });
+
+        fireEvent.click(screen.getByRole("button", { name: "go /editor/7" }));
+        await screen.findByText("მოსწავლის კონტრაქტი 6.007");
+        fireEvent.click(screen.getByRole("button", { name: "go /editor" }));
+
+        await screen.findByText("ახალი მოსწავლის კონტრაქტი");
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
+    });
+
+    // the contract query is skipped on a new form but still holds the contract opened before
+    it("shows a new contract without the next pay date of the contract opened before", async () => {
+        serve();
+        renderNewAndExisting("/editor/7");
+        await screen.findByText(/შემდეგი გადახდის თარიღი/);
+
+        fireEvent.click(screen.getByRole("button", { name: "go /editor" }));
+
+        await screen.findByText("ახალი მოსწავლის კონტრაქტი");
+        expect(screen.queryByText(/შემდეგი გადახდის თარიღი/)).not.toBeInTheDocument();
+    });
+
+    // the form is filled once: a year chosen later in the top menu does not clear it
+    it("keeps the new contract's input when a year is chosen in the top menu", async () => {
+        serve();
+        const store = createStudentContractsStore();
+        renderEditor("/editor", "withRight", store);
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
+        fireEvent.change(screen.getByLabelText("გადახდის სასურველი დღე"), { target: { value: "20" } });
+
+        act(() => {
+            store.dispatch(setSelectedAcademicYearId(10));
+        });
+        await flush();
+
+        expect(screen.getByLabelText("გადახდის სასურველი დღე")).toHaveValue(20);
+        expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("11");
+        expect(screen.getByLabelText("კ. N")).toHaveValue("6.132");
+    });
+
+    // without a year there is no prefix: the number is asked only once a year is chosen
+    it("asks no number before a year is chosen", async () => {
+        const calls = mockFetch((call) => {
+            if (call.url.includes("/formlookups"))
+                return { status: 200, body: { ...lookups, currentAcademicYearId: null } };
+            if (call.url.includes("/nextnumber")) return { status: 200, body: { contractNumber: "6.132" } };
+            return { status: 404, body: {} };
+        });
+        renderEditor("/editor");
+        await screen.findByText("ახალი მოსწავლის კონტრაქტი");
+        expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("");
+
+        fireEvent.change(screen.getByLabelText("სასწ. წელი"), { target: { value: "11" } });
+
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
+        expect(calls.filter((c) => c.url.includes("/nextnumber")).map((c) => c.url.split("?")[1])).toEqual([
+            "academicYearId=11",
+        ]);
+    });
+
+    // the number of the year chosen earlier does not stay
+    it("leaves the number empty when the year has no free number", async () => {
+        mockFetch((call) => {
+            if (call.url.includes("/formlookups")) return { status: 200, body: lookups };
+            if (call.url.includes("/nextnumber"))
+                return { status: 200, body: { contractNumber: call.url.endsWith("=10") ? "5.173" : null } };
+            return { status: 404, body: {} };
+        });
+        renderEditor("/editor");
+        await screen.findByText("ახალი მოსწავლის კონტრაქტი");
+        fireEvent.change(screen.getByLabelText("სასწ. წელი"), { target: { value: "10" } });
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("5.173"));
+
+        fireEvent.change(screen.getByLabelText("სასწ. წელი"), { target: { value: "11" } });
+
+        await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue(""));
+    });
+
+    it("asks no number for an existing contract", async () => {
+        const calls = serve();
+        renderEditor("/editor/7");
+        await screen.findByText("მოსწავლის კონტრაქტი 6.007");
+        await flush();
+
+        expect(screen.getByLabelText("კ. N")).toHaveValue("6.007");
+        expect(calls.filter((c) => c.url.includes("/nextnumber"))).toHaveLength(0);
     });
 
     it("shows the rate columns with their input steps", async () => {

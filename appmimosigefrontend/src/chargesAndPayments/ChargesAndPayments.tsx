@@ -28,6 +28,7 @@ import {
     previousMonthToDate,
     type IStatementFilter,
 } from "./statementFilter";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 interface IGridState {
     offset: number;
@@ -84,6 +85,8 @@ const ChargesAndPayments: FC = () => {
     const hasRight = useHasChargesAndPaymentsRight();
     const { data: lookups, isLoading: lookupsLoading } =
         useGetStatementFormLookupsQuery(undefined, { skip: !hasRight });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const [getRowsData, { data: rowsData, isFetching }] =
         useLazyGetStatementRowsDataQuery();
     const [ApiLoadHaveErrors] = useAlert(EAlertKind.ApiLoad);
@@ -145,7 +148,7 @@ const ChargesAndPayments: FC = () => {
     const academicYearId =
         filter.academicYearId !== ""
             ? filter.academicYearId
-            : (lookups.currentAcademicYearId?.toString() ?? "");
+            : (defaultAcademicYearId?.toString() ?? "");
 
     return (
         <div>

@@ -29,6 +29,7 @@ import {
     nowDateTimeInputValue,
 } from "./crmCallForm";
 import { crmCallsMenuKey, useHasCrmCallsRight } from "./crmCallsMenu";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 //Access-ის FrmCRMCalls-ის სტრიქონი: მოსწავლის კონტრაქტი, ტიპი, თარიღი, შედეგი, საუბარი, "უნდა გადაიხადოს"
 const CrmCallEdit: FC = () => {
@@ -42,6 +43,8 @@ const CrmCallEdit: FC = () => {
     const { data: lookups } = useGetCrmCallFormLookupsQuery(undefined, {
         skip: !hasRight,
     });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const { data: crmCall, isFetching: crmCallLoading } = useGetCrmCallQuery(
         crmCallId ?? 0,
         { skip: !hasRight || crmCallId === undefined }
@@ -63,7 +66,7 @@ const CrmCallEdit: FC = () => {
             setForm(
                 newCrmCallForm(
                     nowDateTimeInputValue(),
-                    lookups.currentAcademicYearId?.toString() ?? ""
+                    defaultAcademicYearId?.toString() ?? ""
                 )
             );
             setFormKey(currentKey);
@@ -71,7 +74,7 @@ const CrmCallEdit: FC = () => {
             setForm(crmCallToForm(crmCall));
             setFormKey(currentKey);
         }
-    }, [currentKey, formKey, lookups, crmCall, crmCallLoading, crmCallId]);
+    }, [currentKey, formKey, lookups, defaultAcademicYearId, crmCall, crmCallLoading, crmCallId]);
 
     useEffect(() => {
         dispatch(clearAlert(EAlertKind.ApiMutation));

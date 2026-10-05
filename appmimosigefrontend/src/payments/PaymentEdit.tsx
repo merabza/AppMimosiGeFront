@@ -31,6 +31,7 @@ import {
     useCanCheckPayments,
     useHasPaymentsRight,
 } from "./paymentsMenu";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 //Access-ის FrmPayments-ის სტრიქონი: მოსწავლის კონტრაქტი, თარიღი, თანხა, დოკუმენტი, ბანკი და (უფლებით) შემოწმება
 const PaymentEdit: FC = () => {
@@ -45,6 +46,8 @@ const PaymentEdit: FC = () => {
     const { data: lookups } = useGetPaymentFormLookupsQuery(undefined, {
         skip: !hasRight,
     });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const { data: payment, isFetching: paymentLoading } = useGetPaymentQuery(
         paymentId ?? 0,
         { skip: !hasRight || paymentId === undefined }
@@ -66,7 +69,7 @@ const PaymentEdit: FC = () => {
             setForm(
                 newPaymentForm(
                     todayDateInputValue(),
-                    lookups.currentAcademicYearId?.toString() ?? ""
+                    defaultAcademicYearId?.toString() ?? ""
                 )
             );
             setFormKey(currentKey);
@@ -74,7 +77,7 @@ const PaymentEdit: FC = () => {
             setForm(paymentToForm(payment));
             setFormKey(currentKey);
         }
-    }, [currentKey, formKey, lookups, payment, paymentLoading, paymentId]);
+    }, [currentKey, formKey, lookups, defaultAcademicYearId, payment, paymentLoading, paymentId]);
 
     useEffect(() => {
         dispatch(clearAlert(EAlertKind.ApiMutation));

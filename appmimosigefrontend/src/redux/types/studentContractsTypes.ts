@@ -64,6 +64,11 @@ export interface IStudentContractRequest {
     details: IStudentContractDetail[];
 }
 
+//წლის შემდეგი თავისუფალი ნომერი ("7.001"); null, თუ 999-ვე დაკავებულია
+export interface IStudentContractNextNumber {
+    contractNumber: string | null;
+}
+
 export interface IStudentContractFormLookups {
     currentAcademicYearId: number | null;
     academicYears: ILookupItem[];

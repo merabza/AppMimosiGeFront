@@ -224,6 +224,19 @@ describe("Payments", () => {
         ]);
     });
 
+    // part 20: the year chosen in the top menu is the default
+    it("lists the contracts of the year chosen in the top menu for the student filter", async () => {
+        localStorage.setItem("selectedAcademicYearId", "10");
+        const calls = serve();
+        renderList();
+
+        await screen.findByText("15.09.2026");
+        expect(screen.getByLabelText("მოსწავლე: სასწავლო წელი")).toHaveValue("10");
+        await waitFor(() =>
+            expect(calls.filter((c) => c.url.includes("/studentcontracts")).map((c) => requestedYear(c.url))).toEqual([10])
+        );
+    });
+
     it("filters by the chosen student and keeps the year in the address", async () => {
         const calls = serve();
         renderList();

@@ -3,7 +3,14 @@
 import type { ILookupItem } from "./studentContractsTypes";
 
 //რეპორტის პარამეტრების სახელები: ბმულის პარამეტრები და სერვერის ReportParameterNames
-export type ReportParameterName = "startDate" | "endDate" | "teacherId" | "courseId" | "studentId";
+export type ReportParameterName =
+    | "startDate"
+    | "endDate"
+    | "teacherId"
+    | "courseId"
+    | "studentId"
+    //შემოწმების რეპორტების სასწავლო წელი (ნაწილი 20)
+    | "academicYearId";
 
 export interface IReportParameterInfo {
     name: ReportParameterName;

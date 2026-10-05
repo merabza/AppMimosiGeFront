@@ -25,16 +25,20 @@ import LookupPicker from "./LookupPicker";
 import ReportView from "./ReportView";
 import { useHasReportsRight } from "./reportsMenu";
 import {
+    allAcademicYears,
     excelFileName,
     isPeriodInvalid,
     missingRequiredCaption,
     reportQueryString,
     reportsOfCategory,
+    resolveAcademicYear,
     selectedOrFirst,
     stateFromSearchParams,
     stateToSearchParams,
     type IReportsPageState,
 } from "./reportsForm";
+import { useGetAcademicYearsQuery } from "../redux/api/academicYearApi";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 import "./reports.css";
 
 //პარამეტრები, რომლებსაც ჩამოსაშლელი სია სჭირდება
@@ -45,6 +49,10 @@ function lookupItems(name: ReportParameterName, lookups?: IReportLookups): ILook
     if (name === "teacherId") return lookups.teachers;
     if (name === "courseId") return lookups.courses;
     return lookups.students;
+}
+
+function usesAcademicYear(report?: IReportInfo): boolean {
+    return report?.parameters.some((p) => p.name === "academicYearId") ?? false;
 }
 
 function needsLookups(report?: IReportInfo): boolean {
@@ -67,6 +75,11 @@ const Reports: FC = () => {
     const reports = catalog && category ? reportsOfCategory(catalog, category.key) : [];
     const selected = selectedOrFirst(reports, state.reportKey);
     const { data: lookups } = useGetReportLookupsQuery(undefined, { skip: !hasRight || !needsLookups(selected) });
+    //შემოწმების რეპორტების წელი: გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე (ნაწილი 20)
+    const { data: academicYears } = useGetAcademicYearsQuery(undefined, {
+        skip: !hasRight || !usesAcademicYear(selected),
+    });
+    const defaultAcademicYearId = useDefaultAcademicYearId(academicYears);
 
     //სხვა გვერდის დარჩენილი შეცდომა აქ არ უნდა ჩანდეს
     useEffect(() => {
@@ -94,6 +107,7 @@ const Reports: FC = () => {
     const setParameter = (name: ReportParameterName, value: string) =>
         setState({ parameters: { ...state.parameters, [name]: value } });
 
+    const parameters = resolveAcademicYear(state.parameters, defaultAcademicYearId);
     const missing = missingRequiredCaption(selected, state.parameters);
     const periodInvalid = isPeriodInvalid(selected, state.parameters);
     const canRun = missing === null && !periodInvalid;
@@ -102,7 +116,7 @@ const Reports: FC = () => {
 
     function view(report: IReportInfo) {
         dispatch(clearAlert(EAlertKind.ApiMutation));
-        getReport({ key: report.key, query: reportQueryString(report, state.parameters) });
+        getReport({ key: report.key, query: reportQueryString(report, parameters) });
     }
 
     async function excel(report: IReportInfo) {
@@ -110,8 +124,8 @@ const Reports: FC = () => {
         try {
             await downloadExcel({
                 key: report.key,
-                query: reportQueryString(report, state.parameters),
-                fileName: excelFileName(report, state.parameters),
+                query: reportQueryString(report, parameters),
+                fileName: excelFileName(report, parameters),
             }).unwrap();
         } catch {
             //შეცდომა უკვე ჩაიწერა ApiMutation-ში და ქვემოთ ჩანს
@@ -120,6 +134,28 @@ const Reports: FC = () => {
 
     function parameterInput(parameter: IReportParameterInfo) {
         const id = `reportParameter-${parameter.name}`;
+        if (parameter.name === "academicYearId")
+            return (
+                <Form.Group key={parameter.name} className="mb-2">
+                    <Form.Label htmlFor={id}>{parameter.caption}</Form.Label>
+                    <Form.Select
+                        id={id}
+                        value={
+                            state.parameters.academicYearId === ""
+                                ? (defaultAcademicYearId?.toString() ?? allAcademicYears)
+                                : state.parameters.academicYearId
+                        }
+                        onChange={(e) => setParameter(parameter.name, e.target.value)}
+                    >
+                        <option value={allAcademicYears}>ყველა</option>
+                        {academicYears?.academicYears.map((ay) => (
+                            <option key={ay.id} value={ay.id}>
+                                {ay.name}
+                            </option>
+                        ))}
+                    </Form.Select>
+                </Form.Group>
+            );
         if (lookupParameters.includes(parameter.name))
             return (
                 <LookupPicker

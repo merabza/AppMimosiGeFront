@@ -14,6 +14,7 @@ import {
     useCreateStudentContractMutation,
     useDeleteStudentContractMutation,
     useGetStudentContractFormLookupsQuery,
+    useGetStudentContractNextNumberQuery,
     useGetStudentContractQuery,
     useUpdateStudentContractMutation,
 } from "../redux/api/studentContractsApi";
@@ -33,6 +34,7 @@ import {
     studentContractsMenuKey,
     useHasStudentContractsRight,
 } from "./studentContractsMenu";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 //თანხა ბაზაში 4 ათწილადამდე ინახება (money) და გადათვლაც ასეთ მნიშვნელობას იძლევა (48 / 9 = 5.3333), ამიტომ
 //თანხის ველის ნაბიჯი არ იზღუდება: "0.01"-ზე ბრაუზერი ასეთ ფორმას არ აგზავნიდა (D60)
@@ -53,6 +55,8 @@ const StudentContractEdit: FC = () => {
         undefined,
         { skip: !hasRight }
     );
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const { data: contract, isFetching: contractLoading } =
         useGetStudentContractQuery(scId ?? 0, {
             skip: !hasRight || scId === undefined,
@@ -69,6 +73,14 @@ const StudentContractEdit: FC = () => {
     const [form, setForm] = useState<IContractForm | null>(null);
     const [formKey, setFormKey] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    //ახალი კონტრაქტის ნომერი წლის შემდეგი თავისუფალი ნომრით ივსება, სანამ მომხმარებელი მას ხელით არ შეცვლის (ნაწილი 20)
+    const [numberEdited, setNumberEdited] = useState(false);
+    const nextNumberAcademicYearId = Number(form?.academicYearId ?? "");
+    //ნომერი ქეშში არ რჩება (keepUnusedDataFor: 0), ამიტომ ყოველ ახალ ფორმაზე თავიდან იკითხება. გამოტოვებული მოთხოვნის
+    //(არსებული კონტრაქტი, ხელით შეცვლილი ნომერი, წლის გარეშე) currentData ცარიელია
+    const { currentData: nextNumber } = useGetStudentContractNextNumberQuery(nextNumberAcademicYearId, {
+        skip: scId !== undefined || numberEdited || !(nextNumberAcademicYearId > 0),
+    });
 
     //ფორმა ერთხელ ივსება თითო ჩანაწერზე (ან ახალზე), რომ ხელახალმა ჩატვირთვამ შეყვანილი არ წაშალოს
     const currentKey = scId === undefined ? "new" : `edit/${scId}`;
@@ -78,19 +90,25 @@ const StudentContractEdit: FC = () => {
             setForm(
                 newContractForm(
                     todayDateInputValue(),
-                    lookups.currentAcademicYearId
+                    defaultAcademicYearId
                 )
             );
+            setNumberEdited(false);
             setFormKey(currentKey);
         } else if (contract && contract.scId === scId && !contractLoading) {
             setForm(contractToForm(contract));
             setFormKey(currentKey);
         }
-    }, [currentKey, formKey, lookups, contract, contractLoading, scId]);
+    }, [currentKey, formKey, lookups, defaultAcademicYearId, contract, contractLoading, scId]);
 
     useEffect(() => {
         dispatch(clearAlert(EAlertKind.ApiMutation));
     }, [dispatch, currentKey]);
+
+    useEffect(() => {
+        if (!nextNumber) return;
+        setForm((f) => (f ? { ...f, contractNumber: nextNumber.contractNumber ?? "" } : f));
+    }, [nextNumber]);
 
     if (hasRight === false)
         return <h5>მოსწავლეების კონტრაქტების ნახვის უფლება არ გაქვთ</h5>;
@@ -186,9 +204,10 @@ const StudentContractEdit: FC = () => {
                             title="ფორმატი 0.000, მაგალითად 6.001"
                             placeholder="0.000"
                             value={form.contractNumber}
-                            onChange={(e) =>
-                                setField("contractNumber", e.target.value)
-                            }
+                            onChange={(e) => {
+                                setNumberEdited(true);
+                                setField("contractNumber", e.target.value);
+                            }}
                         />
                     </Form.Group>
                 </Col>

@@ -30,6 +30,9 @@ export interface ILessonFormLookups {
     groups: ILookupItem[];
     teacherContracts: ILookupItem[];
     lessonStatuses: ILookupItem[];
+    //სიის წლის ფილტრი (ნაწილი 20)
+    currentAcademicYearId: number | null;
+    academicYears: ILookupItem[];
 }
 
 //მოსწავლე და საათები მხოლოდ საჩვენებელია: საათებს გენერატორი წერს

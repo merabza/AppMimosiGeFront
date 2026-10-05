@@ -202,6 +202,23 @@ describe("ChargesAndPayments", () => {
         expect(calls.some((c) => c.url.includes("/payments/"))).toBe(false);
     });
 
+    // part 20: the year chosen in the top menu is the default
+    it("loads the students of the year chosen in the top menu", async () => {
+        localStorage.setItem("selectedAcademicYearId", "10");
+        const calls = serve();
+        renderPage();
+
+        await screen.findByText("15.09.2026 15:00");
+        await waitFor(() =>
+            expect(calls.map((c) => c.url)).toContain(
+                "http://localhost:5070/api/v1/chargesandpayments/studentcontracts?academicYearId=10"
+            )
+        );
+        expect(calls.map((c) => c.url)).not.toContain(
+            "http://localhost:5070/api/v1/chargesandpayments/studentcontracts?academicYearId=11"
+        );
+    });
+
     it("chooses a student and loads the statement of the contract", async () => {
         const calls = serve();
         renderPage();

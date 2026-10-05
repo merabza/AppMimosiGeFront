@@ -34,6 +34,7 @@ import GroupTeachersTab from "./GroupTeachersTab";
 import GroupStudentsTab from "./GroupStudentsTab";
 import GroupDayTimePlacesTab from "./GroupDayTimePlacesTab";
 import GroupLessonsGenerator from "../lessonGenerator/GroupLessonsGenerator";
+import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 
 type GroupTab = "teachers" | "students" | "dayTimePlaces";
 
@@ -66,6 +67,8 @@ const GroupEdit: FC = () => {
     const { data: lookups } = useGetGroupFormLookupsQuery(undefined, {
         skip: !hasRight,
     });
+    //გლობალურად არჩეული (ზედა მენიუ) ან მიმდინარე სასწავლო წელი (ნაწილი 20)
+    const defaultAcademicYearId = useDefaultAcademicYearId(lookups);
     const { data: group, isFetching: groupLoading } = useGetGroupQuery(
         grpId ?? 0,
         {
@@ -101,7 +104,7 @@ const GroupEdit: FC = () => {
     useEffect(() => {
         if (formKey === currentKey || !lookups) return;
         if (grpId === undefined) {
-            setForm(newGroupForm(lookups.currentAcademicYearId));
+            setForm(newGroupForm(defaultAcademicYearId));
             setFormKey(currentKey);
             setActiveTab("teachers");
         } else if (group && group.grpId === grpId && !groupLoading) {
@@ -111,7 +114,7 @@ const GroupEdit: FC = () => {
             setFormKey(currentKey);
             setActiveTab("teachers");
         }
-    }, [currentKey, formKey, lookups, group, groupLoading, grpId]);
+    }, [currentKey, formKey, lookups, defaultAcademicYearId, group, groupLoading, grpId]);
 
     useEffect(() => {
         dispatch(clearAlert(EAlertKind.ApiMutation));

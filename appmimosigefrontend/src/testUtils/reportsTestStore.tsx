@@ -12,6 +12,8 @@ import navMenuReducer, { setMenuLoading, setNavMenu } from "../appcarcass/redux/
 import userReducer, { setUser } from "../appcarcass/redux/slices/userSlice";
 import type { IAppUser } from "../appcarcass/redux/types/authenticationTypes";
 import { reportsApi } from "../redux/api/reportsApi";
+import { academicYearApi } from "../redux/api/academicYearApi";
+import academicYearReducer from "../redux/slices/academicYearSlice";
 import type { IReport, IReportCatalog, IReportInfo, IReportLookups } from "../redux/types/reportsTypes";
 import LocationProbe from "./LocationProbe";
 import { mainMenu, type MenuState } from "./studentContractsTestStore";
@@ -23,6 +25,9 @@ export function createReportsStore(menu: MenuState = "withRight") {
     const store = configureStore({
         reducer: {
             [reportsApi.reducerPath]: reportsApi.reducer,
+            //the check reports pick their academic year from the global list (part 20)
+            [academicYearApi.reducerPath]: academicYearApi.reducer,
+            academicYearState: academicYearReducer,
             alertState: alertReducer,
             appParametersState: appParametersReducer,
             navMenuState: navMenuReducer,
@@ -32,7 +37,10 @@ export function createReportsStore(menu: MenuState = "withRight") {
             appParametersState: { appName: "test", baseUrl: testBaseUrl },
         },
         middleware: (getDefaultMiddleware) =>
-            getDefaultMiddleware({ serializableCheck: false }).concat(reportsApi.middleware),
+            getDefaultMiddleware({ serializableCheck: false }).concat(
+                reportsApi.middleware,
+                academicYearApi.middleware
+            ),
     });
     store.dispatch(setUser({ token: "token" } as unknown as IAppUser));
     if (menu === "withRight") store.dispatch(setNavMenu(mainMenu("payments", "reports")));
