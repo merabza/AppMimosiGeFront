@@ -1,7 +1,7 @@
 //Reports.tsx
 
 import { useEffect, useMemo, type FC } from "react";
-import { Alert, Button, Col, Form, ListGroup, Row, Spinner } from "react-bootstrap";
+import { Alert, Button, Col, Form, Row, Spinner } from "react-bootstrap";
 import { useSearchParams } from "react-router-dom";
 import AlertMessages from "../appcarcass/common/AlertMessages";
 import Loading from "../appcarcass/common/Loading";
@@ -59,7 +59,7 @@ function needsLookups(report?: IReportInfo): boolean {
     return report?.parameters.some((p) => lookupParameters.includes(p.name)) ?? false;
 }
 
-//Access-ის FrmMain: კატეგორიები, კატეგორიის რეპორტები, არჩეული რეპორტის ფილტრები (მხოლოდ მისი პარამეტრები),
+//Access-ის FrmMain: კატეგორიის და მისი რეპორტების ჩამოსაშლელი სიები, არჩეული რეპორტის ფილტრები (მხოლოდ მისი პარამეტრები),
 //"ნახვა", "ბეჭდვა" და "Excel". კატეგორია, რეპორტი და ფილტრები ბმულშია; შედეგი "ნახვა"-ზე იტვირთება
 const Reports: FC = () => {
     const dispatch = useAppDispatch();
@@ -184,37 +184,37 @@ const Reports: FC = () => {
     return (
         <div>
             <Row className="no-print">
-                <Col md="3">
-                    <h6>კატეგორია</h6>
-                    <ListGroup className="mb-3">
-                        {catalog.categories.map((c) => (
-                            <ListGroup.Item
-                                key={c.key}
-                                action
-                                active={c.key === category.key}
-                                onClick={() => setState({ categoryKey: c.key, reportKey: "" })}
-                            >
-                                {c.name}
-                            </ListGroup.Item>
-                        ))}
-                    </ListGroup>
-                </Col>
-                <Col md="4">
-                    <h6>რეპორტი</h6>
-                    <ListGroup className="mb-3">
-                        {reports.map((r) => (
-                            <ListGroup.Item
-                                key={r.key}
-                                action
-                                active={r.key === selected.key}
-                                onClick={() => setState({ categoryKey: category.key, reportKey: r.key })}
-                            >
-                                {r.title}
-                            </ListGroup.Item>
-                        ))}
-                    </ListGroup>
-                </Col>
                 <Col md="5">
+                    <Form.Group className="mb-2">
+                        <Form.Label htmlFor="reportCategory">კატეგორია</Form.Label>
+                        <Form.Select
+                            id="reportCategory"
+                            value={category.key}
+                            onChange={(e) => setState({ categoryKey: e.target.value, reportKey: "" })}
+                        >
+                            {catalog.categories.map((c) => (
+                                <option key={c.key} value={c.key}>
+                                    {c.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="reportKey">რეპორტი</Form.Label>
+                        <Form.Select
+                            id="reportKey"
+                            value={selected.key}
+                            onChange={(e) => setState({ categoryKey: category.key, reportKey: e.target.value })}
+                        >
+                            {reports.map((r) => (
+                                <option key={r.key} value={r.key}>
+                                    {r.title}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+                </Col>
+                <Col md="7">
                     <h6>{selected.title}</h6>
                     {selected.description && <p className="text-muted small">{selected.description}</p>}
                     <Form

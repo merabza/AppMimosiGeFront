@@ -53,7 +53,11 @@ const location = () => screen.getByTestId("location").textContent ?? "";
 const viewButton = () => screen.getByRole("button", { name: /^ნახვა/ }) as HTMLButtonElement;
 const printButton = () => screen.getByRole("button", { name: "ბეჭდვა" }) as HTMLButtonElement;
 const excelButton = () => screen.getByRole("button", { name: /^Excel/ }) as HTMLButtonElement;
-const listItem = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
+const categorySelect = () => screen.getByLabelText("კატეგორია") as HTMLSelectElement;
+const reportSelect = () => screen.getByLabelText("რეპორტი") as HTMLSelectElement;
+const optionNames = (select: HTMLSelectElement) => Array.from(select.options).map((o) => o.textContent);
+const chooseCategory = (key: string) => fireEvent.change(categorySelect(), { target: { value: key } });
+const chooseReport = (key: string) => fireEvent.change(reportSelect(), { target: { value: key } });
 
 describe("Reports", () => {
     it("says when the user has no right and loads nothing", async () => {
@@ -129,7 +133,7 @@ describe("Reports", () => {
             </Provider>
         );
         await screen.findByRole("heading", { name: "ოთახების ცხრილი" });
-        fireEvent.click(listItem("შემოწმება"));
+        chooseCategory("checks");
         await screen.findByRole("heading", { name: "ოთახების გადაფარვა" });
 
         fireEvent.click(screen.getByRole("button", { name: "back" }));
@@ -143,11 +147,10 @@ describe("Reports", () => {
         renderPage();
 
         expect(await screen.findByRole("heading", { name: "ოთახების ცხრილი" })).toBeInTheDocument();
-        expect(listItem("ყველა")).toHaveClass("active");
-        expect(listItem("გაკვეთილების ცხრილი")).not.toHaveClass("active");
-        expect(listItem("ოთახების ცხრილი")).toHaveClass("active");
-        expect(listItem("ოთახების გადაფარვა")).not.toHaveClass("active");
-        expect(listItem("პერიოდის რეპორტი")).not.toHaveClass("active");
+        expect(categorySelect()).toHaveValue("all");
+        expect(optionNames(categorySelect())).toEqual(["ყველა", "გაკვეთილების ცხრილი", "შემოწმება"]);
+        expect(reportSelect()).toHaveValue("r03RoomsAgenda");
+        expect(optionNames(reportSelect())).toEqual(["ოთახების ცხრილი", "ოთახების გადაფარვა", "პერიოდის რეპორტი"]);
         expect(screen.getByText("ოთახების გაკვეთილები კვირის დღეების მიხედვით").tagName).toBe("P");
         expect(screen.queryByText(/შევსებული უნდა იყოს/)).not.toBeInTheDocument();
         expect((screen.getByLabelText("თარიღისთვის") as HTMLInputElement).value).toBe("2026-10-02");
@@ -165,11 +168,13 @@ describe("Reports", () => {
         renderPage();
         await screen.findByRole("heading", { name: "ოთახების ცხრილი" });
 
-        fireEvent.click(listItem("შემოწმება"));
+        chooseCategory("checks");
 
         expect(await screen.findByRole("heading", { name: "ოთახების გადაფარვა" })).toBeInTheDocument();
-        expect(listItem("შემოწმება")).toHaveClass("active");
-        expect(screen.queryByRole("button", { name: "ოთახების ცხრილი" })).not.toBeInTheDocument();
+        expect(categorySelect()).toHaveValue("checks");
+        //the reports list is filtered by the category
+        expect(reportSelect()).toHaveValue("r06RoomOver");
+        expect(optionNames(reportSelect())).toEqual(["ოთახების გადაფარვა", "პერიოდის რეპორტი"]);
         expect(location()).toContain("category=checks");
         expect(location()).not.toContain("report=");
     });
@@ -179,9 +184,10 @@ describe("Reports", () => {
         renderPage();
         await screen.findByRole("heading", { name: "ოთახების ცხრილი" });
 
-        fireEvent.click(listItem("ოთახების გადაფარვა"));
+        chooseReport("r06RoomOver");
 
         expect(await screen.findByRole("heading", { name: "ოთახების გადაფარვა" })).toBeInTheDocument();
+        expect(reportSelect()).toHaveValue("r06RoomOver");
         expect(location()).toContain("category=all&report=r06RoomOver");
     });
 
@@ -191,7 +197,9 @@ describe("Reports", () => {
         renderPage("/reports?category=schedule&report=r06RoomOver&endDate=2026-09-20");
 
         expect(await screen.findByRole("heading", { name: "ოთახების გადაფარვა" })).toBeInTheDocument();
-        expect(listItem("გაკვეთილების ცხრილი")).toHaveClass("active");
+        expect(categorySelect()).toHaveValue("schedule");
+        expect(optionNames(reportSelect())).toEqual(["ოთახების ცხრილი", "ოთახების გადაფარვა"]);
+        expect(reportSelect()).toHaveValue("r06RoomOver");
         expect((screen.getByLabelText("თარიღისთვის") as HTMLInputElement).value).toBe("2026-09-20");
     });
 
@@ -269,7 +277,7 @@ describe("Reports", () => {
         fireEvent.click(viewButton());
         await screen.findByTestId("reportView");
 
-        fireEvent.click(listItem("ოთახების გადაფარვა"));
+        chooseReport("r06RoomOver");
 
         await screen.findByRole("heading", { name: "ოთახების გადაფარვა" });
         expect(screen.queryByTestId("reportView")).not.toBeInTheDocument();
