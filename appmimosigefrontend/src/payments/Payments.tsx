@@ -1,7 +1,7 @@
 //Payments.tsx
 
 import { useCallback, useEffect, useMemo, useRef, type FC } from "react";
-import { Alert, Button, Col, Form, Row } from "react-bootstrap";
+import { Alert, Button, Col, Form, Row, Spinner } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router-dom";
 import GridView from "../appcarcass/grid/GridView";
 import CustomColumn from "../appcarcass/grid/columns/CustomColumn";
@@ -11,11 +11,13 @@ import type {
 } from "../appcarcass/grid/GridViewTypes";
 import Loading from "../appcarcass/common/Loading";
 import AlertMessages from "../appcarcass/common/AlertMessages";
-import { EAlertKind } from "../appcarcass/redux/slices/alertSlice";
+import { useAppDispatch } from "../appcarcass/redux/hooks";
+import { clearAlert, EAlertKind } from "../appcarcass/redux/slices/alertSlice";
 import { useAlert } from "../appcarcass/hooks/useAlert";
 import {
     useGetPaymentFormLookupsQuery,
     useLazyGetPaymentsRowsDataQuery,
+    useSetPaymentCheckedMutation,
 } from "../redux/api/paymentsApi";
 import type { IPaymentRow } from "../redux/types/paymentsTypes";
 import { formatDate } from "../studentContracts/dateFormat";
@@ -60,9 +62,34 @@ function column(
     };
 }
 
-const checkMark = (value: unknown) => (value ? "✓" : "");
+//"შემოწმებულია" ალამი პირდაპირ სიაში, რედაქტორის გახსნის გარეშე (D152). შენახვისას ალმის ნაცვლად spinner ჩანს,
+//შეცდომა სიის ზემოთ
+const CheckedCell: FC<{ row: IPaymentRow }> = ({ row }) => {
+    const dispatch = useAppDispatch();
+    const [setPaymentChecked, { isLoading }] = useSetPaymentCheckedMutation();
 
-//"შემოწმებულია" სვეტი მხოლოდ გადახდების შემოწმების უფლების მქონე როლს უჩანს (D77)
+    async function change(checked: boolean) {
+        //ახალი მოქმედება ძველ შეცდომას ასუფთავებს
+        dispatch(clearAlert(EAlertKind.ApiMutation));
+        try {
+            await setPaymentChecked({ paymentId: row.id, checked }).unwrap();
+        } catch {
+            //შეცდომა უკვე ჩაიწერა ApiMutation-ში და სიის ზემოთ ჩანს
+        }
+    }
+
+    if (isLoading) return <Spinner size="sm" animation="border" />;
+
+    return (
+        <Form.Check
+            aria-label={`${row.studentName}: შემოწმებულია`}
+            checked={row.checked}
+            onChange={(e) => change(e.target.checked)}
+        />
+    );
+};
+
+//"შემოწმებულია" სვეტი მხოლოდ გადახდების შემოწმების უფლების მქონე როლს უჩანს (D77) და ალამი იქვე იცვლება (D152)
 function paymentColumns(canCheck: boolean): IGridColumn[] {
     return [
         column(
@@ -89,7 +116,11 @@ function paymentColumns(canCheck: boolean): IGridColumn[] {
                   column(
                       "checked",
                       "შემოწმებულია",
-                      <CustomColumn onGetCell={checkMark} />
+                      <CustomColumn
+                          onGetCell={(_, record) => (
+                              <CheckedCell row={record as IPaymentRow} />
+                          )}
+                      />
                   ),
               ]
             : []),
@@ -100,6 +131,7 @@ function paymentColumns(canCheck: boolean): IGridColumn[] {
 
 //Access-ის FrmPayments: გადახდების სია ფილტრით (მოსწავლე, ბანკი, თარიღები) და ფილტრის ჯამით
 const Payments: FC = () => {
+    const dispatch = useAppDispatch();
     const hasRight = useHasPaymentsRight();
     const canCheck = useCanCheckPayments();
     const { data: lookups, isLoading: lookupsLoading } =
@@ -139,6 +171,14 @@ const Payments: FC = () => {
     useEffect(() => {
         if (hasRight) load({ ...gridState.current, offset: 0 });
     }, [load, hasRight]);
+
+    //სხვა გვერდის (მაგ. რედაქტორის) დარჩენილი შეცდომა აქ არ უნდა ჩანდეს და ალმის შეცდომა სხვა გვერდზე
+    useEffect(() => {
+        dispatch(clearAlert(EAlertKind.ApiMutation));
+        return () => {
+            dispatch(clearAlert(EAlertKind.ApiMutation));
+        };
+    }, [dispatch]);
 
     if (hasRight === undefined || lookupsLoading) return <Loading />;
 
@@ -239,6 +279,7 @@ const Payments: FC = () => {
                     </Col>
                 </Row>
             </Form>
+            <AlertMessages alertKind={EAlertKind.ApiMutation} />
             {rangeInvalid && (
                 <Alert variant="warning">
                     დაწყების თარიღი დასრულების თარიღზე გვიან არის

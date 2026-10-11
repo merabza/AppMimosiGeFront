@@ -4,9 +4,9 @@ import { waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { mockFetch, testBaseUrl } from "../../testUtils/testStore";
 import { decodeFilterSortRequest } from "../../testUtils/studentContractsTestStore";
-import { createPaymentsStore, paymentLookups } from "../../testUtils/paymentsTestStore";
+import { createPaymentsStore, paymentLookups, paymentRow } from "../../testUtils/paymentsTestStore";
 import { paymentsApi } from "./paymentsApi";
-import type { IPaymentRequest } from "../types/paymentsTypes";
+import type { IPaymentRequest, IPaymentsRowsData } from "../types/paymentsTypes";
 
 const base = `${testBaseUrl}/payments`;
 
@@ -126,6 +126,80 @@ describe("paymentsApi", () => {
         expect(calls[0].body).toEqual(request);
         expect(calls[1].body).toEqual(request);
         expect(calls[2].body).toBeUndefined();
+    });
+
+    it("sets the checked flag with its own PUT", async () => {
+        const calls = mockFetch(() => ({ status: 200 }));
+        const store = createPaymentsStore();
+
+        await store.dispatch(
+            paymentsApi.endpoints.setPaymentChecked.initiate({ paymentId: 31, checked: true })
+        );
+
+        expect(calls.map((c) => [c.method, c.url, c.body])).toEqual([
+            ["PUT", `${base}/31/checked`, { checked: true }],
+        ]);
+    });
+
+    // D152: only the payment's flag changes, in every loaded list, so the rows keep their places
+    it("changes the flag of the payment in every loaded list", async () => {
+        const row = (id: number, checked: boolean) => ({ ...paymentRow, id, checked });
+        const lists: Record<number, IPaymentsRowsData> = {
+            0: { allRowsCount: 12, offset: 0, totalAmount: 0, rows: [row(5, false), row(6, false)] },
+            10: { allRowsCount: 12, offset: 10, totalAmount: 0, rows: [row(5, false), row(7, true)] },
+        };
+        mockFetch((call) =>
+            call.method === "PUT"
+                ? { status: 200 }
+                : { status: 200, body: lists[decodeFilterSortRequest(call.url).offset] }
+        );
+        const store = createPaymentsStore();
+        const pageRequest = { ...listRequest, offset: 10 };
+        const first = store.dispatch(paymentsApi.endpoints.getPaymentsRowsData.initiate(listRequest));
+        const second = store.dispatch(paymentsApi.endpoints.getPaymentsRowsData.initiate(pageRequest));
+        await first;
+        await second;
+
+        await store.dispatch(
+            paymentsApi.endpoints.setPaymentChecked.initiate({ paymentId: 5, checked: true })
+        );
+        await store.dispatch(
+            paymentsApi.endpoints.setPaymentChecked.initiate({ paymentId: 7, checked: false })
+        );
+
+        const flags = (args: typeof listRequest) =>
+            paymentsApi.endpoints.getPaymentsRowsData
+                .select(args)(store.getState())
+                .data?.rows.map((r) => [r.id, r.checked]);
+        await waitFor(() => expect(flags(pageRequest)).toEqual([[5, true], [7, false]]));
+        expect(flags(listRequest)).toEqual([[5, true], [6, false]]);
+        first.unsubscribe();
+        second.unsubscribe();
+    });
+
+    it("leaves the loaded list as it was when the flag is refused", async () => {
+        mockFetch((call) =>
+            call.method === "PUT"
+                ? serverError
+                : { status: 200, body: { ...emptyRows, allRowsCount: 1, rows: [{ ...paymentRow, checked: false }] } }
+        );
+        const store = createPaymentsStore();
+        const list = store.dispatch(paymentsApi.endpoints.getPaymentsRowsData.initiate(listRequest));
+        await list;
+
+        await store.dispatch(
+            paymentsApi.endpoints.setPaymentChecked.initiate({ paymentId: 5, checked: true })
+        );
+
+        await waitFor(() =>
+            expect(store.getState().alertState.alert.ApiMutation).toEqual([
+                { errorCode: "PaymentIsChecked", errorMessage: "checked" },
+            ])
+        );
+        expect(
+            paymentsApi.endpoints.getPaymentsRowsData.select(listRequest)(store.getState()).data?.rows[0].checked
+        ).toBe(false);
+        list.unsubscribe();
     });
 
     it("writes failed loads into the ApiLoad alerts", async () => {

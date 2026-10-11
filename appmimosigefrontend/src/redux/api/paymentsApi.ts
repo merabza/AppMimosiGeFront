@@ -100,6 +100,33 @@ export const paymentsApi = createApi({
             onQueryStarted: (_, { dispatch, queryFulfilled }) =>
                 reportMutationError(dispatch, queryFulfilled),
         }),
+        //"შემოწმებულია" ალამი პირდაპირ სიიდან (D152). სია თავიდან არ იტვირთება: ჩატვირთულ სიებში მხოლოდ ამ გადახდის
+        //ალამი იცვლება, რომ მონიშვნისას სტრიქონები ადგილზე დარჩეს (შემოწმებულიათი დალაგებულ სიაშიც)
+        setPaymentChecked: builder.mutation<void, { paymentId: number; checked: boolean }>({
+            query: ({ paymentId, checked }) => ({
+                url: `${baseUrl}/${paymentId}/checked`,
+                method: "PUT",
+                body: { checked },
+            }),
+            onQueryStarted: async ({ paymentId, checked }, { dispatch, getState, queryFulfilled }) => {
+                try {
+                    await queryFulfilled;
+                } catch (error) {
+                    dispatch(setAlertApiMutationError(buildErrorMessage(error)));
+                    return;
+                }
+                for (const args of paymentsApi.util.selectCachedArgsForQuery(
+                    getState(),
+                    "getPaymentsRowsData"
+                ))
+                    dispatch(
+                        paymentsApi.util.updateQueryData("getPaymentsRowsData", args, (rowsData) => {
+                            for (const row of rowsData.rows)
+                                if (row.id === paymentId) row.checked = checked;
+                        })
+                    );
+            },
+        }),
         deletePayment: builder.mutation<void, number>({
             query: (paymentId) => ({
                 url: `${baseUrl}/${paymentId}`,
@@ -119,5 +146,6 @@ export const {
     useGetPaymentQuery,
     useCreatePaymentMutation,
     useUpdatePaymentMutation,
+    useSetPaymentCheckedMutation,
     useDeletePaymentMutation,
 } = paymentsApi;

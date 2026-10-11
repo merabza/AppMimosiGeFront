@@ -2,9 +2,10 @@
 
 import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { setAlertApiMutationError } from "../appcarcass/redux/slices/alertSlice";
 import { setUser } from "../appcarcass/redux/slices/userSlice";
 import type { IAppUser } from "../appcarcass/redux/types/authenticationTypes";
-import { mockFetch, type FetchCall, type FetchReply } from "../testUtils/testStore";
+import { mockFetch, testBaseUrl, type FetchCall, type FetchReply } from "../testUtils/testStore";
 import { decodeFilterSortRequest, type MenuState } from "../testUtils/studentContractsTestStore";
 import {
     createPaymentsStore,
@@ -18,15 +19,26 @@ import { currentMonthToDate } from "./paymentsListFilter";
 import Payments from "./Payments";
 
 const rows = { allRowsCount: 1, offset: 0, totalAmount: 10728.75, rows: [paymentRow] };
+const uncheckedRows = { ...rows, rows: [{ ...paymentRow, checked: false }] };
 
-function serve(rowsReply: () => FetchReply | Promise<FetchReply> = () => ({ status: 200, body: rows })): FetchCall[] {
+// the PUT of the checked flag gets its own reply, every other request the rows
+function serve(
+    rowsReply: (call: FetchCall) => FetchReply | Promise<FetchReply> = () => ({ status: 200, body: rows }),
+    checkedReply: () => FetchReply | Promise<FetchReply> = () => ({ status: 200 })
+): FetchCall[] {
     return mockFetch((call) => {
         if (call.url.includes("/formlookups")) return { status: 200, body: paymentLookups };
         if (call.url.includes("/studentcontracts"))
             return { status: 200, body: yearContracts[requestedYear(call.url)] ?? [] };
-        return rowsReply();
+        if (call.method === "PUT") return checkedReply();
+        return rowsReply(call);
     });
 }
+
+const refused = { status: 403, body: [{ code: "InsufficientRights", name: "არასაკმარისი უფლებები" }] };
+
+const checkedBox = () => screen.getByRole("checkbox", { name: "Alpha Ann 6.001: შემოწმებულია" });
+const findCheckedBox = () => screen.findByRole("checkbox", { name: "Alpha Ann 6.001: შემოწმებულია" });
 
 function renderList(url = "/payments", menu: MenuState = "withRight", appClaims?: string[]) {
     const store = createPaymentsStore(menu, appClaims);
@@ -115,7 +127,7 @@ describe("Payments", () => {
 
         await screen.findByText("15.09.2026");
         expect(screen.queryByText("შემოწმებულია")).not.toBeInTheDocument();
-        expect(screen.queryByText("✓")).not.toBeInTheDocument();
+        expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     });
 
     it("shows the checked column with the special right", async () => {
@@ -124,17 +136,173 @@ describe("Payments", () => {
 
         const link = await screen.findByRole("link", { name: "Alpha Ann 6.001" });
         expect(screen.getByText("შემოწმებულია")).toBeInTheDocument();
-        const cells = within(link.closest("tr")!).getAllByRole("cell").map((c) => c.textContent);
-        expect(cells.slice(1)).toEqual(["Alpha Ann 6.001", "15.09.2026", "300.00", "N 15", "Zeta Bank", "✓"]);
+        const cells = within(link.closest("tr")!).getAllByRole("cell");
+        expect(cells.slice(1).map((c) => c.textContent)).toEqual([
+            "Alpha Ann 6.001",
+            "15.09.2026",
+            "300.00",
+            "N 15",
+            "Zeta Bank",
+            "",
+        ]);
+        expect(within(cells[6]).getByRole("checkbox", { name: "Alpha Ann 6.001: შემოწმებულია" })).toBeChecked();
     });
 
-    it("shows an unchecked payment without a mark", async () => {
-        serve(() => ({ status: 200, body: { ...rows, rows: [{ ...paymentRow, checked: false }] } }));
+    it("shows an unchecked payment with an empty box", async () => {
+        serve(() => ({ status: 200, body: uncheckedRows }));
         renderList("/payments", "withRight", ["CheckPayments"]);
 
-        const link = await screen.findByRole("link", { name: "Alpha Ann 6.001" });
-        const cells = within(link.closest("tr")!).getAllByRole("cell").map((c) => c.textContent);
-        expect(cells.slice(1)).toEqual(["Alpha Ann 6.001", "15.09.2026", "300.00", "N 15", "Zeta Bank", ""]);
+        expect(await findCheckedBox()).not.toBeChecked();
+    });
+
+    // D152: the flag is changed right in the list, without opening the payment
+    it("checks a payment in the list without opening it", async () => {
+        const calls = serve(() => ({ status: 200, body: uncheckedRows }));
+        renderList("/payments", "withRight", ["CheckPayments"]);
+
+        fireEvent.click(await findCheckedBox());
+
+        await waitFor(() => expect(checkedBox()).toBeChecked());
+        expect(calls.filter((c) => c.method === "PUT").map((c) => [c.url, c.body])).toEqual([
+            [`${testBaseUrl}/payments/5/checked`, { checked: true }],
+        ]);
+        expect(location()).toBe("/payments");
+    });
+
+    it("unchecks a checked payment in the list", async () => {
+        const calls = serve();
+        renderList("/payments", "withRight", ["CheckPayments"]);
+
+        fireEvent.click(await findCheckedBox());
+
+        await waitFor(() => expect(checkedBox()).not.toBeChecked());
+        expect(calls.filter((c) => c.method === "PUT").map((c) => c.body)).toEqual([{ checked: false }]);
+    });
+
+    // the rows keep their places while payments are checked one after another
+    it("does not load the list again after the flag changes", async () => {
+        const calls = serve(() => ({ status: 200, body: uncheckedRows }));
+        renderList("/payments", "withRight", ["CheckPayments"]);
+        const box = await findCheckedBox();
+        const loadsBefore = rowsRequests(calls).length;
+
+        fireEvent.click(box);
+        await waitFor(() => expect(checkedBox()).toBeChecked());
+
+        //a later sort request shows that no other load was started in between
+        fireEvent.click(screen.getByText("თანხა"));
+        await waitFor(() =>
+            expect(lastRowsRequest(calls).sortByFields).toEqual([{ fieldName: "amount", ascending: true }])
+        );
+        expect(rowsRequests(calls)).toHaveLength(loadsBefore + 1);
+    });
+
+    it("shows a spinner instead of the box while the flag is saved", async () => {
+        serve(
+            () => ({ status: 200, body: uncheckedRows }),
+            () => new Promise<FetchReply>(() => {})
+        );
+        renderList("/payments", "withRight", ["CheckPayments"]);
+        const box = await findCheckedBox();
+        const cell = box.closest("td")!;
+        expect(cell.querySelector(".spinner-border")).toBeNull();
+
+        fireEvent.click(box);
+
+        //a small spinner, so the row keeps its height
+        await waitFor(() => expect(cell.querySelector(".spinner-border.spinner-border-sm")).not.toBeNull());
+        expect(within(cell).queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
+    // the rows are keyed by the payment, so a flag being saved stays with its payment when the order changes
+    it("keeps the spinner with its payment when the list is sorted meanwhile", async () => {
+        const alpha = { ...paymentRow, checked: false };
+        const beta = { ...paymentRow, id: 6, studentName: "Beta Bob 6.002", checked: false };
+        serve(
+            (call) => ({
+                status: 200,
+                body: {
+                    ...rows,
+                    allRowsCount: 2,
+                    rows: decodeFilterSortRequest(call.url).sortByFields.length > 0 ? [beta, alpha] : [alpha, beta],
+                },
+            }),
+            () => new Promise<FetchReply>(() => {})
+        );
+        renderList("/payments", "withRight", ["CheckPayments"]);
+        fireEvent.click(await findCheckedBox());
+        await waitFor(() =>
+            expect(screen.queryByRole("checkbox", { name: "Alpha Ann 6.001: შემოწმებულია" })).not.toBeInTheDocument()
+        );
+
+        fireEvent.click(screen.getByText("თანხა"));
+
+        await waitFor(() =>
+            expect(screen.getAllByRole("link", { name: /Alpha|Beta/ }).map((l) => l.textContent)).toEqual([
+                "Beta Bob 6.002",
+                "Alpha Ann 6.001",
+            ])
+        );
+        const rowOf = (name: string) => screen.getByRole("link", { name }).closest("tr")!;
+        expect(rowOf("Alpha Ann 6.001").querySelector(".spinner-border")).not.toBeNull();
+        expect(within(rowOf("Beta Bob 6.002")).getByRole("checkbox", { name: "Beta Bob 6.002: შემოწმებულია" })).not.toBeChecked();
+    });
+
+    // D80: the list sorts by every column, the checked flag too
+    it("sorts by the checked flag on the server", async () => {
+        const calls = serve();
+        renderList("/payments", "withRight", ["CheckPayments"]);
+        await findCheckedBox();
+
+        fireEvent.click(screen.getByText("შემოწმებულია"));
+
+        await waitFor(() =>
+            expect(lastRowsRequest(calls).sortByFields).toEqual([{ fieldName: "checked", ascending: true }])
+        );
+    });
+
+    it("shows a refusal above the list and keeps the box as it was", async () => {
+        serve(() => ({ status: 200, body: uncheckedRows }), () => refused);
+        renderList("/payments", "withRight", ["CheckPayments"]);
+
+        fireEvent.click(await findCheckedBox());
+
+        const error = await screen.findByText("არასაკმარისი უფლებები");
+        expect(error.compareDocumentPosition(screen.getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(checkedBox()).not.toBeChecked();
+    });
+
+    it("clears the old error when the flag is changed again", async () => {
+        let checkedReply: () => FetchReply | Promise<FetchReply> = () => refused;
+        serve(
+            () => ({ status: 200, body: uncheckedRows }),
+            () => checkedReply()
+        );
+        renderList("/payments", "withRight", ["CheckPayments"]);
+        fireEvent.click(await findCheckedBox());
+        await screen.findByText("არასაკმარისი უფლებები");
+
+        checkedReply = () => new Promise<FetchReply>(() => {});
+        fireEvent.click(checkedBox());
+
+        await waitFor(() => expect(screen.queryByText("არასაკმარისი უფლებები")).not.toBeInTheDocument());
+    });
+
+    // the error left by the payment form does not show in the list, and the list's error does not stay for other pages
+    it("clears the change errors when it opens and when it closes", async () => {
+        serve(() => ({ status: 200, body: uncheckedRows }), () => refused);
+        const store = createPaymentsStore("withRight", ["CheckPayments"]);
+        store.dispatch(setAlertApiMutationError([{ errorCode: "PaymentIsChecked", errorMessage: "form error" }]));
+        const { unmount } = renderPaymentsOnRoute(<Payments />, store, "/payments", "/payments");
+
+        const box = await findCheckedBox();
+        expect(screen.queryByText("form error")).not.toBeInTheDocument();
+        fireEvent.click(box);
+        await screen.findByText("არასაკმარისი უფლებები");
+
+        unmount();
+
+        expect(store.getState().alertState.alert.ApiMutation).toEqual([]);
     });
 
     it("titles the columns as the Access form does", async () => {
