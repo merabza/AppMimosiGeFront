@@ -10,7 +10,7 @@ interface SalaryLinesProps {
     details: ISalaryLineDetail[];
 }
 
-//გამოთვლის შედეგი, მხოლოდ საჩვენებელი: სტრიქონები ჯამებით (Access-ის SalaryLines subform და ფორმის ქვედა ნაწილი) და
+//გამოთვლის შედეგი, მხოლოდ საჩვენებელი: სტრიქონები ჯამებით (Access-ის SalaryLines subform და მის ზემოთ ჯამები) და
 //სტრიქონების დეტალები ჯგუფებით
 const SalaryLines: FC<SalaryLinesProps> = ({ lines, details }) => {
     const totals = salaryLineTotals(lines);
@@ -19,6 +19,25 @@ const SalaryLines: FC<SalaryLinesProps> = ({ lines, details }) => {
             <h6>სტრიქონები</h6>
             <Table striped bordered hover size="sm" responsive>
                 <thead>
+                    {/* ჯამები სათაურების ზემოთ, როგორც Access-ის ფორმაზე: ჩანს, რომელი სვეტის ჯამია */}
+                    <tr className="fw-bold" data-testid="salary-totals">
+                        <td colSpan={2}>ჯამი</td>
+                        <td className="text-end">{formatMoney(totals.saNetAmountRound)}</td>
+                        <td className="text-end">{formatMoney(totals.saAmountGross)}</td>
+                        <td className="text-end">{formatMoney(totals.saPension2)}</td>
+                        <td className="text-end">{formatMoney(totals.saGrossMinusPension)}</td>
+                        <td className="text-end">{formatMoney(totals.saIncomeTax)}</td>
+                        <td className="text-end">{formatMoney(totals.saIndividualIncomeTax)}</td>
+                        <td className="text-end">{formatMoney(totals.saGamokvitva)}</td>
+                        <td className="text-end">{formatMoney(totals.saPension4)}</td>
+                        <td className="text-end">{formatMoney(totals.saAmountNet)}</td>
+                    </tr>
+                    <tr>
+                        <td colSpan={10}>სულ (გადასარიცხი + საშემოსავლო + საპენსიოს 4%)</td>
+                        <td className="text-end fw-bold" data-testid="salary-total">
+                            {formatMoney(totals.total)}
+                        </td>
+                    </tr>
                     <tr>
                         <th>თანამშრომელი</th>
                         <th>თვე</th>
@@ -55,26 +74,6 @@ const SalaryLines: FC<SalaryLinesProps> = ({ lines, details }) => {
                         </tr>
                     )}
                 </tbody>
-                <tfoot>
-                    <tr className="fw-bold" data-testid="salary-totals">
-                        <td colSpan={2}>ჯამი</td>
-                        <td className="text-end">{formatMoney(totals.saNetAmountRound)}</td>
-                        <td className="text-end">{formatMoney(totals.saAmountGross)}</td>
-                        <td className="text-end">{formatMoney(totals.saPension2)}</td>
-                        <td className="text-end">{formatMoney(totals.saGrossMinusPension)}</td>
-                        <td className="text-end">{formatMoney(totals.saIncomeTax)}</td>
-                        <td className="text-end">{formatMoney(totals.saIndividualIncomeTax)}</td>
-                        <td className="text-end">{formatMoney(totals.saGamokvitva)}</td>
-                        <td className="text-end">{formatMoney(totals.saPension4)}</td>
-                        <td className="text-end">{formatMoney(totals.saAmountNet)}</td>
-                    </tr>
-                    <tr>
-                        <td colSpan={10}>სულ (გადასარიცხი + საშემოსავლო + საპენსიოს 4%)</td>
-                        <td className="text-end fw-bold" data-testid="salary-total">
-                            {formatMoney(totals.total)}
-                        </td>
-                    </tr>
-                </tfoot>
             </Table>
 
             <h6>დეტალები ჯგუფების მიხედვით</h6>

@@ -129,7 +129,8 @@ describe("SalaryEdit", () => {
                 ["Alpha Ann / T3.01", "ხელფასი ჩატარებული გაკვეთილების მიხედვით", "99.50", "გამოთვლით"],
                 ["Beta Bob / T3.05", "დანამატი", "800.00", ""],
             ]);
-            expect(tableRows(1).slice(1, 3)).toEqual([
+            // the totals and the "სულ" row are above the headers, so the lines start after the third row
+            expect(tableRows(1).slice(3, 5)).toEqual([
                 ["Alpha Ann / T3.01", "09.2026", "100.00", "125.00", "2.50", "122.50", "24.50", "0.00", "10.00", "5.00", "88.00"],
                 ["Beta Bob / T3.05", "09.2026", "800.00", "1000.00", "0.00", "1000.00", "200.00", "0.00", "0.00", "0.00", "800.00"],
             ]);
