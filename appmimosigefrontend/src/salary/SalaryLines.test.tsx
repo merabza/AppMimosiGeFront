@@ -25,21 +25,23 @@ function cellsByColumn(row: HTMLElement): Map<number, string> {
 }
 
 describe("SalaryLines", () => {
-    it("shows the totals and the grand total above the column headers", () => {
+    it("shows the totals above the column headers and the grand total below the lines", () => {
         render(<SalaryLines lines={lines} details={details} />);
 
         expect(linesRows().map(firstCellText)).toEqual([
             "ჯამი",
-            grandTotalCaption,
             "თანამშრომელი",
             "Alpha Ann / T3.01",
             "Beta Bob / T3.05",
+            grandTotalCaption,
         ]);
     });
 
     it("puts every total under its own column header", () => {
         render(<SalaryLines lines={lines} details={details} />);
-        const [totals, grandTotal, headers] = linesRows();
+        const rows = linesRows();
+        const [totals, headers] = rows;
+        const grandTotal = rows[rows.length - 1];
         const headerOf = cellsByColumn(headers);
         const underHeaders = (row: HTMLElement) =>
             Object.fromEntries(
@@ -64,17 +66,17 @@ describe("SalaryLines", () => {
         });
     });
 
-    it("shows zero totals above the headers when nothing is calculated yet", () => {
+    it("shows zero totals above the headers and a zero grand total below when nothing is calculated yet", () => {
         render(<SalaryLines lines={[]} details={[]} />);
         const rows = linesRows();
 
         expect(rows.map(firstCellText)).toEqual([
             "ჯამი",
-            grandTotalCaption,
             "თანამშრომელი",
             "სტრიქონები არ არის: უწყისი ჯერ არ გამოთვლილა",
+            grandTotalCaption,
         ]);
         expect(cellTexts(rows[0])).toEqual(["ჯამი", ...Array<string>(9).fill("0.00")]);
-        expect(cellTexts(rows[1])).toEqual([grandTotalCaption, "0.00"]);
+        expect(cellTexts(rows[3])).toEqual([grandTotalCaption, "0.00"]);
     });
 });
