@@ -25,8 +25,8 @@ function Cells({ row, columns }: { row: ReportCell[]; columns: IReportColumn[] }
 }
 
 //რეპორტის შედეგი: სათაური, პარამეტრები, ცხრილი; დაჯგუფებული რეპორტის ყოველ სექციას სათაურის სტრიქონი და,
-//საჭიროებისას, ჯამის სტრიქონი აქვს; ბოლოს რეპორტის ჯამები. ბეჭდვისას მხოლოდ ეს ნაწილი ჩანს (reports.css). ფართო
-//ცხრილი ეკრანზე თავის ადგილას გადაიხვევა, გვერდი არ ფართოვდება
+//საჭიროებისას, ჯამის სტრიქონი აქვს; ბოლოს რეპორტის ჯამები. ბეჭდვისას მხოლოდ ეს ნაწილი ჩანს და newPage სექცია
+//ახალი გვერდიდან იწყება (reports.css). ფართო ცხრილი ეკრანზე თავის ადგილას გადაიხვევა, გვერდი არ ფართოვდება
 const ReportView: FC<ReportViewProps> = ({ report }) => {
     const rowsCount = report.sections.reduce((count, section) => count + section.rows.length, 0);
     const wide = report.columns.length > wideReportColumns;
@@ -56,7 +56,10 @@ const ReportView: FC<ReportViewProps> = ({ report }) => {
                             </tr>
                         </thead>
                         {report.sections.map((section, sectionIndex) => (
-                            <tbody key={sectionIndex}>
+                            <tbody
+                                key={sectionIndex}
+                                className={section.newPage ? "report-section-new-page" : undefined}
+                            >
                                 {section.header !== null && (
                                     <tr className="fw-bold">
                                         <td colSpan={report.columns.length}>{section.header}</td>

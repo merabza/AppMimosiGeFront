@@ -133,6 +133,7 @@ export function roomsReport(changes: Partial<IReport> = {}): IReport {
                     ["R2", "B1", null, "15:30:00"],
                 ],
                 footer: null,
+                newPage: false,
             },
         ],
         footerRows: [],

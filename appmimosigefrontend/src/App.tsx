@@ -9,6 +9,10 @@ import { ReactRouter6Adapter } from "use-query-params/adapters/react-router-6";
 import LoginPage from "./appcarcass/common/LoginPage";
 import PrivateApp from "./appcarcass/common/PrivateApp";
 import RegistrationPage from "./appcarcass/common/RegistrationPage";
+import ConfirmEmailPage from "./appcarcass/common/ConfirmEmailPage";
+import ChangeRequiredPasswordPage from "./appcarcass/common/ChangeRequiredPasswordPage";
+import ForgotPasswordPage from "./appcarcass/common/ForgotPasswordPage";
+import ResetPasswordPage from "./appcarcass/common/ResetPasswordPage";
 
 import { library } from "@fortawesome/fontawesome-svg-core";
 import {
@@ -59,6 +63,7 @@ import {
     faSort,
     faSortUp,
     faSortDown,
+    faPaperPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import Layout from "./appcarcass/common/Layout";
 import Profile from "./appcarcass/user/Profile";
@@ -137,7 +142,8 @@ library.add(
     faAngleDoubleRight,
     faSort,
     faSortUp,
-    faSortDown
+    faSortDown,
+    faPaperPlane
 );
 
 const App: FC = () => {
@@ -263,6 +269,10 @@ const App: FC = () => {
                     </Route>
                     <Route path="login" element={<LoginPage />} />
                     <Route path="registration" element={<RegistrationPage />} />
+                    <Route path="confirm-email" element={<ConfirmEmailPage />} />
+                    <Route path="change-required-password" element={<ChangeRequiredPasswordPage />} />
+                    <Route path="forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="reset-password" element={<ResetPasswordPage />} />
                 </Routes>
                 {/* </div> */}
             </QueryParamProvider>

@@ -60,6 +60,8 @@ export interface IReportSection {
     header: string | null;
     rows: ReportCell[][];
     footer: ReportCell[] | null;
+    //ბეჭდვისას სექცია ახალი გვერდიდან იწყება (მაგ. r01-ის ყოველი ახალი ჯგუფი)
+    newPage: boolean;
 }
 
 export interface IReportParameterValue {

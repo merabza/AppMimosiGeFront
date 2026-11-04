@@ -42,6 +42,11 @@
         page-break-inside: avoid;
     }
 
+    /* სერვერის newPage სექცია (მაგ. r01-ის ყოველი ახალი ჯგუფი) ახალი გვერდიდან იწყება */
+    .report-table tbody.report-section-new-page {
+        break-before: page;
+    }
+
     /* ფართო რეპორტი (ReportView-ის wideReportColumns-ზე მეტი სვეტი, მაგ. r36): ლანდშაფტი, პატარა შრიფტი და
        ვიწრო უჯრები, სვეტების სათაურები რამდენიმე ხაზზე */
     .report-print-area-wide {

@@ -46,7 +46,11 @@ describe("ReportView", () => {
     });
 
     it("says when there are no rows", () => {
-        render(<ReportView report={roomsReport({ sections: [{ header: null, rows: [], footer: null }] })} />);
+        render(
+            <ReportView
+                report={roomsReport({ sections: [{ header: null, rows: [], footer: null, newPage: false }] })}
+            />
+        );
 
         expect(screen.getByText("მონაცემები არ არის")).toBeInTheDocument();
         expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -61,7 +65,7 @@ describe("ReportView", () => {
                         { name: "startTime", caption: "დრო", type: "time" },
                         { name: "weekDay1", caption: "1-ორ", type: "wholeNumber" },
                     ],
-                    sections: [{ header: null, rows: [["10:00:00", 2]], footer: null }],
+                    sections: [{ header: null, rows: [["10:00:00", 2]], footer: null, newPage: false }],
                     footerRows: [
                         ["დღეების ჯამები:", 2],
                         ["სულ:", 2],
@@ -91,8 +95,8 @@ describe("ReportView", () => {
                         { name: "hours", caption: "საათები", type: "number" },
                     ],
                     sections: [
-                        { header: "მასწავლებელი: Alpha", rows: [["A1", 1.5]], footer: ["ჯამი:", 1.5] },
-                        { header: "მასწავლებელი: Beta", rows: [["B1", 2]], footer: null },
+                        { header: "მასწავლებელი: Alpha", rows: [["A1", 1.5]], footer: ["ჯამი:", 1.5], newPage: false },
+                        { header: "მასწავლებელი: Beta", rows: [["B1", 2]], footer: null, newPage: false },
                     ],
                 })}
             />
@@ -116,6 +120,25 @@ describe("ReportView", () => {
         expect(screen.getByRole("table").querySelector("tfoot")).toBeNull();
     });
 
+    // a section marked newPage (r01: every group after the first) gets the class that starts a new printed page
+    // (reports.css); the other sections have no class
+    it("marks a newPage section for the print page break", () => {
+        render(
+            <ReportView
+                report={roomsReport({
+                    sections: [
+                        { header: "ჯგუფი: A1", rows: [["R1"]], footer: null, newPage: false },
+                        { header: "ჯგუფი: B1", rows: [["R2"]], footer: null, newPage: true },
+                    ],
+                })}
+            />
+        );
+
+        const bodies = screen.getByRole("table").querySelectorAll("tbody");
+        expect(bodies[0]).not.toHaveAttribute("class");
+        expect(bodies[1]).toHaveClass("report-section-new-page");
+    });
+
     // the table scrolls in its own box; a report of more than 20 columns (r36) is marked wide for the landscape print
     it.each([
         [20, false],
@@ -128,7 +151,10 @@ describe("ReportView", () => {
         }));
         render(
             <ReportView
-                report={roomsReport({ columns, sections: [{ header: null, rows: [[1]], footer: null }] })}
+                report={roomsReport({
+                    columns,
+                    sections: [{ header: null, rows: [[1]], footer: null, newPage: false }],
+                })}
             />
         );
 
@@ -145,7 +171,11 @@ describe("ReportView", () => {
 
     // a row shorter than the columns leaves the missing cells empty
     it("shows a short row with empty cells", () => {
-        render(<ReportView report={roomsReport({ sections: [{ header: null, rows: [["R1"]], footer: null }] })} />);
+        render(
+            <ReportView
+                report={roomsReport({ sections: [{ header: null, rows: [["R1"]], footer: null, newPage: false }] })}
+            />
+        );
 
         const rows = within(screen.getByRole("table")).getAllByRole("row");
         expect(cellTexts(rows[1])).toEqual(["R1", "", "", ""]);
