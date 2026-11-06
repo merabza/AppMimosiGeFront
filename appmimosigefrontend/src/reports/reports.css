@@ -26,6 +26,17 @@
         padding: 0 !important;
     }
 
+    /* ფურცელს თავისი კიდეები აქვს: #root-ის 2rem დაშორება (App.css) ბეჭდვისას სიგანეს ტყუილად ამცირებს */
+    #root {
+        padding: 0 !important;
+    }
+
+    /* ერთგვერდიანი რეპორტი ფურცლის თავიდან იწყება: index.css-ის body (flex, place-items: center, min-height: 100vh)
+       ბეჭდვისას მოკლე შედეგს ფურცლის შუაში სვამდა (ეკრანზე #content absolute-ია და ამას ვერ ამჩნევ) */
+    body {
+        align-items: flex-start !important;
+    }
+
     .report-table-scroll {
         overflow: visible !important;
     }
@@ -47,7 +58,19 @@
         break-before: page;
     }
 
-    /* ფართო რეპორტი (ReportView-ის wideReportColumns-ზე მეტი სვეტი, მაგ. r36): ლანდშაფტი, პატარა შრიფტი და
+    /* სექციის სათაური (სვეტების მთელ სიგანეზე) ფურცელზე გრძელი რომ იყოს, უჯრაში გადაიტანება, როგორც Excel-ში
+       (D155), და ცხრილს ფურცელზე ფართოს აღარ ხდის (მაგ. r10-ის ჯგუფი ყველა მასწავლებლით) */
+    .report-table td[colspan] {
+        white-space: normal;
+    }
+
+    /* სვეტის გრძელი სათაური (ReportView-ის longCaptionLength-ზე გრძელი, მაგ. r22-ის „თეორიულად მინიმალური თარიღი")
+       რამდენიმე ხაზზე გადაიტანება, რომ ცხრილი ფურცლის სიგანეს არ გასცდეს; მოკლე სათაური ერთ ხაზზე რჩება */
+    .report-table th.report-caption-long {
+        white-space: normal;
+    }
+
+    /* ფართო რეპორტი (ReportView-ის wideReportColumns-ზე მეტი სვეტი, მაგ. r30, r36): ლანდშაფტი, პატარა შრიფტი და
        ვიწრო უჯრები, სვეტების სათაურები რამდენიმე ხაზზე */
     .report-print-area-wide {
         page: report-landscape;
@@ -63,6 +86,19 @@
     }
 
     .report-table.report-table-wide th {
+        white-space: normal;
+    }
+
+    /* კომპაქტური საბეჭდი ფორმა (ReportView-ის compactPrintReportKeys, r01): ფართო ცხრილს Chrome ბეჭდვისას
+       მაქსიმუმ 2/3-მდე ამცირებდა და დანარჩენს ჭრიდა (სექციის სათაური ამაზე გრძელია). ახლა ფორმა ცოტა უფრო
+       პატარა მასშტაბითაა, ამიტომ ჩვეულებრივი სათაური ერთ ხაზზე ეტევა (Letter-ზეც და A4-ზეც); უფრო გრძელი
+       სათაური ზემოთა წესით გადაიტანება. გრძელი ტექსტიც (ReportView-ის longTextLength-ზე გრძელი, მაგ. კომენტარი)
+       უჯრაში გადაიტანება, ასე რომ ცხრილი ფურცლის სიგანეს არ სცდება; მოკლე ტექსტი (სახელი, ნომერი) ერთ ხაზზე რჩება */
+    .report-print-area-compact {
+        zoom: 0.6;
+    }
+
+    .report-print-area-compact .report-table td.report-cell-long {
         white-space: normal;
     }
 }

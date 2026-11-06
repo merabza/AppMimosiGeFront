@@ -139,10 +139,11 @@ describe("ReportView", () => {
         expect(bodies[1]).toHaveClass("report-section-new-page");
     });
 
-    // the table scrolls in its own box; a report of more than 20 columns (r36) is marked wide for the landscape print
+    // the table scrolls in its own box; a report of more than 12 columns (r30, r36) is marked wide for the landscape
+    // print
     it.each([
-        [20, false],
-        [21, true],
+        [12, false],
+        [13, true],
     ])("marks a report of %i columns as wide: %s", (count, wide) => {
         const columns = Array.from({ length: count }, (_, index) => ({
             name: `c${index}`,
@@ -167,6 +168,57 @@ describe("ReportView", () => {
                 : "report-table table table-sm table-striped table-bordered"
         );
         expect(table.parentElement).toHaveClass("report-table-scroll");
+    });
+
+    // r01 (the comments form) prints compact: a smaller scale, long section headers and long texts wrapped
+    // (reports.css); the other reports don't
+    it.each([
+        ["r01Comments", "report-print-area report-print-area-compact"],
+        ["r03RoomsAgenda", "report-print-area"],
+    ])("marks the print area of %s", (key, className) => {
+        render(<ReportView report={roomsReport({ key })} />);
+
+        expect(screen.getByTestId("reportView").className).toBe(className);
+    });
+
+    // a column caption longer than 20 characters (r22) is marked to wrap in print; a shorter one stays on one line
+    it("marks the long captions", () => {
+        render(
+            <ReportView
+                report={roomsReport({
+                    columns: [
+                        { name: "short", caption: "ა".repeat(20), type: "text" },
+                        { name: "long", caption: "ა".repeat(21), type: "dateTime" },
+                    ],
+                    sections: [{ header: null, rows: [["R1", null]], footer: null, newPage: false }],
+                })}
+            />
+        );
+
+        const captions = Array.from(screen.getByRole("table").querySelectorAll("th"));
+        expect(captions.map((c) => c.className)).toEqual(["", "report-caption-long"]);
+    });
+
+    // a text longer than 40 characters (a comment) is marked to wrap in the compact print; a shorter one (a name)
+    // stays on one line, a number keeps its right alignment
+    it("marks the long texts", () => {
+        render(
+            <ReportView
+                report={roomsReport({
+                    columns: [
+                        { name: "student", caption: "მოსწავლე", type: "text" },
+                        { name: "comment", caption: "კომენტარი", type: "text" },
+                        { name: "hours", caption: "საათები", type: "number" },
+                    ],
+                    sections: [
+                        { header: null, rows: [["ა".repeat(40), "ა".repeat(41), 1.5]], footer: null, newPage: false },
+                    ],
+                })}
+            />
+        );
+
+        const cells = Array.from(screen.getByRole("table").querySelectorAll("tbody td"));
+        expect(cells.map((c) => c.className)).toEqual(["", "report-cell-long", "text-end"]);
     });
 
     // a row shorter than the columns leaves the missing cells empty
