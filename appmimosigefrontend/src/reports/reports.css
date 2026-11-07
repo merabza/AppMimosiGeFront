@@ -19,7 +19,7 @@
         display: none !important;
     }
 
-    #content {
+    #layout-content {
         position: static !important;
         width: 100% !important;
         min-height: 0 !important;
@@ -32,7 +32,7 @@
     }
 
     /* ერთგვერდიანი რეპორტი ფურცლის თავიდან იწყება: index.css-ის body (flex, place-items: center, min-height: 100vh)
-       ბეჭდვისას მოკლე შედეგს ფურცლის შუაში სვამდა (ეკრანზე #content absolute-ია და ამას ვერ ამჩნევ) */
+       ბეჭდვისას მოკლე შედეგს ფურცლის შუაში სვამდა (ეკრანზე #layout-content absolute-ია და ამას ვერ ამჩნევ) */
     body {
         align-items: flex-start !important;
     }
