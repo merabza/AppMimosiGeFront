@@ -84,6 +84,8 @@ import Lessons from "./lessons/Lessons";
 import LessonEdit from "./lessons/LessonEdit";
 import Payments from "./payments/Payments";
 import PaymentEdit from "./payments/PaymentEdit";
+import BankTransactions from "./bankTransactions/BankTransactions";
+import BankTransactionEdit from "./bankTransactions/BankTransactionEdit";
 import ChargesAndPayments from "./chargesAndPayments/ChargesAndPayments";
 import Deposits from "./deposits/Deposits";
 import CrmCalls from "./crmCalls/CrmCalls";
@@ -238,6 +240,14 @@ const App: FC = () => {
                                 element={<PaymentEdit />}
                             />
                             <Route path="paymentEdit" element={<PaymentEdit />} />
+                            <Route
+                                path="bankTransactions"
+                                element={<BankTransactions />}
+                            />
+                            <Route
+                                path="bankTransactionEdit/:bankTransactionId"
+                                element={<BankTransactionEdit />}
+                            />
                             <Route
                                 path="chargesAndPayments"
                                 element={<ChargesAndPayments />}

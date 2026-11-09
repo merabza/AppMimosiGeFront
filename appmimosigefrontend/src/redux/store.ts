@@ -29,6 +29,7 @@ import { groupsApi } from "./api/groupsApi";
 import { lessonGeneratorApi } from "./api/lessonGeneratorApi";
 import { lessonsApi } from "./api/lessonsApi";
 import { paymentsApi } from "./api/paymentsApi";
+import { bankTransactionsApi } from "./api/bankTransactionsApi";
 import { chargesAndPaymentsApi } from "./api/chargesAndPaymentsApi";
 import { depositsApi } from "./api/depositsApi";
 import { crmCallsApi } from "./api/crmCallsApi";
@@ -52,6 +53,7 @@ export const store = configureStore({
         [lessonGeneratorApi.reducerPath]: lessonGeneratorApi.reducer,
         [lessonsApi.reducerPath]: lessonsApi.reducer,
         [paymentsApi.reducerPath]: paymentsApi.reducer,
+        [bankTransactionsApi.reducerPath]: bankTransactionsApi.reducer,
         [chargesAndPaymentsApi.reducerPath]: chargesAndPaymentsApi.reducer,
         [depositsApi.reducerPath]: depositsApi.reducer,
         [crmCallsApi.reducerPath]: crmCallsApi.reducer,
@@ -88,6 +90,7 @@ export const store = configureStore({
             lessonGeneratorApi.middleware,
             lessonsApi.middleware,
             paymentsApi.middleware,
+            bankTransactionsApi.middleware,
             chargesAndPaymentsApi.middleware,
             depositsApi.middleware,
             crmCallsApi.middleware,
