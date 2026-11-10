@@ -3,9 +3,10 @@
 //backend-ის AppMimosiGeShared.Contracts-ის შესაბამისი ტიპები (JSON camelCase-ითაა): ბანკის ჩარიცხვები (TBC_INTEGRATION.md)
 
 //matchStep: რომელმა წესმა იპოვა მოსწავლე (0 = ვერ იპოვა); allocatedAmount: გადახდებად განაწილებული ჯამი;
-//hasCheckedPayments: განაწილების გადახდა შემოწმებულია და განაწილება აღარ იცვლება (D168)
+//hasCheckedPayments: განაწილების გადახდა შემოწმებულია და განაწილება აღარ იცვლება (D168); bankName: ანგარიშის ბანკი
 export interface IBankTransactionRow {
     id: number;
+    bankName: string;
     transactionDate: string;
     amount: number;
     partnerName: string | null;
@@ -29,6 +30,7 @@ export interface IBankTransactionAllocation {
 
 export interface IBankTransaction {
     id: number;
+    bankName: string;
     transactionDate: string;
     amount: number;
     currency: string;
@@ -60,7 +62,10 @@ export interface IBankTransactionShare {
     amount: number;
 }
 
-export interface IImportBankTransactions {
+//ერთი ინტეგრირებული ანგარიშის მიღება (D173); error: ამ ანგარიშის მიღება ვერ შედგა, სხვებს ეს არ აჩერებს
+export interface IImportBankAccount {
+    bankAccountId: number;
+    bankName: string;
     periodFrom: string;
     periodTo: string;
     received: number;
@@ -68,5 +73,10 @@ export interface IImportBankTransactions {
     imported: number;
     allocated: number;
     unallocated: number;
+    error: string | null;
+}
+
+export interface IImportBankTransactions {
+    accounts: IImportBankAccount[];
     dryRun: boolean;
 }

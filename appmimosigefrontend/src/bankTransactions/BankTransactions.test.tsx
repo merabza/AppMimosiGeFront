@@ -15,13 +15,32 @@ import BankTransactions from "./BankTransactions";
 const base = `${testBaseUrl}/banktransactions`;
 
 const imported: IImportBankTransactions = {
-    periodFrom: "2026-11-06T00:00:00",
-    periodTo: "2026-11-09T00:00:00",
-    received: 4,
-    alreadyImported: 1,
-    imported: 3,
-    allocated: 2,
-    unallocated: 1,
+    accounts: [
+        {
+            bankAccountId: 4,
+            bankName: "TBC Bank",
+            periodFrom: "2026-11-06T00:00:00",
+            periodTo: "2026-11-09T00:00:00",
+            received: 4,
+            alreadyImported: 1,
+            imported: 3,
+            allocated: 2,
+            unallocated: 1,
+            error: null,
+        },
+        {
+            bankAccountId: 1,
+            bankName: "Bank of Georgia",
+            periodFrom: "2026-11-10T00:00:00",
+            periodTo: "2026-11-10T00:00:00",
+            received: 0,
+            alreadyImported: 0,
+            imported: 0,
+            allocated: 0,
+            unallocated: 0,
+            error: "rate limited",
+        },
+    ],
     dryRun: false,
 };
 
@@ -59,6 +78,7 @@ describe("BankTransactions", () => {
         const first = await screen.findByTestId("bankTransaction-7");
         expect([...first.querySelectorAll("td")].map((td) => td.textContent)).toEqual([
             "09.11.2026",
+            "TBC Bank",
             "100.00",
             "Delta Dan",
             "tuition",
@@ -125,9 +145,11 @@ describe("BankTransactions", () => {
 
         fireEvent.click(screen.getByRole("button", { name: "ბანკიდან განახლება" }));
 
-        expect(await screen.findByTestId("importSummary")).toHaveTextContent(
-            "ბანკიდან მიღებულია 4 ჩარიცხვა (2026-11-06 – 2026-11-09), აქედან ახალი 3: განაწილდა 2, გაუნაწილებელია 1"
-        );
+        const summary = await screen.findByTestId("importSummary");
+        expect([...summary.children].map((line) => line.textContent)).toEqual([
+            "TBC Bank: მიღებულია 4 ჩარიცხვა (2026-11-06 – 2026-11-09), აქედან ახალი 3: განაწილდა 2, გაუნაწილებელია 1",
+            "Bank of Georgia: rate limited",
+        ]);
         expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual([`${base}/import`]);
         await waitFor(() => expect(calls.filter((c) => c.method === "GET")).toHaveLength(2));
     });

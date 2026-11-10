@@ -134,6 +134,10 @@ const BankTransactionEditor: FC<EditorProps> = ({ bankTransaction, academicYears
                         <td>{formatDate(bankTransaction.transactionDate)}</td>
                     </tr>
                     <tr>
+                        <th>ბანკი</th>
+                        <td>{bankTransaction.bankName}</td>
+                    </tr>
+                    <tr>
                         <th>თანხა</th>
                         <td data-testid="transactionAmount">
                             {formatAmount(bankTransaction.amount)} {bankTransaction.currency}

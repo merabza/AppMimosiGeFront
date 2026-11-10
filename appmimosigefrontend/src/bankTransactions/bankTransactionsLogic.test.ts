@@ -71,21 +71,41 @@ describe("filter search params", () => {
 });
 
 describe("importSummary", () => {
-    it("tells the period and the counts", () => {
+    it("tells every account's period and counts, or its error", () => {
         expect(
             importSummary({
-                periodFrom: "2026-11-06T00:00:00",
-                periodTo: "2026-11-09T00:00:00",
-                received: 5,
-                alreadyImported: 2,
-                imported: 3,
-                allocated: 2,
-                unallocated: 1,
+                accounts: [
+                    {
+                        bankAccountId: 4,
+                        bankName: "თიბისი",
+                        periodFrom: "2026-11-06T00:00:00",
+                        periodTo: "2026-11-09T00:00:00",
+                        received: 5,
+                        alreadyImported: 2,
+                        imported: 3,
+                        allocated: 2,
+                        unallocated: 1,
+                        error: null,
+                    },
+                    {
+                        bankAccountId: 1,
+                        bankName: "საქართველოს ბანკი",
+                        periodFrom: "2026-11-10T00:00:00",
+                        periodTo: "2026-11-10T00:00:00",
+                        received: 0,
+                        alreadyImported: 0,
+                        imported: 0,
+                        allocated: 0,
+                        unallocated: 0,
+                        error: "ბანკი ასე ხშირ მოთხოვნას არ იღებს: სცადეთ 42 წამში",
+                    },
+                ],
                 dryRun: false,
             })
-        ).toBe(
-            "ბანკიდან მიღებულია 5 ჩარიცხვა (2026-11-06 – 2026-11-09), აქედან ახალი 3: განაწილდა 2, გაუნაწილებელია 1"
-        );
+        ).toEqual([
+            "თიბისი: მიღებულია 5 ჩარიცხვა (2026-11-06 – 2026-11-09), აქედან ახალი 3: განაწილდა 2, გაუნაწილებელია 1",
+            "საქართველოს ბანკი: ბანკი ასე ხშირ მოთხოვნას არ იღებს: სცადეთ 42 წამში",
+        ]);
     });
 });
 

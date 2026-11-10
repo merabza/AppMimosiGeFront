@@ -52,6 +52,7 @@ describe("BankTransactionEdit", () => {
         expect(await screen.findByText("ბანკის ჩარიცხვის განაწილება")).toBeInTheDocument();
         expect(screen.getByTestId("transactionAmount")).toHaveTextContent("100.00 GEL");
         expect(screen.getByText("Delta Dan")).toBeInTheDocument();
+        expect(screen.getByText("TBC Bank")).toBeInTheDocument();
         expect(screen.getByText("01001000100")).toBeInTheDocument();
         expect(screen.getByText("GE00TB0000000000000100")).toBeInTheDocument();
         expect(screen.getByText("tuition")).toBeInTheDocument();

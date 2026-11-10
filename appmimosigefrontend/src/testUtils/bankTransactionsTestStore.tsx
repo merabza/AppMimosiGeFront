@@ -93,6 +93,7 @@ export const yearContracts: Record<number, ILookupItem[]> = {
 export function bankTransactionRow(changes: Partial<IBankTransactionRow> = {}): IBankTransactionRow {
     return {
         id: 7,
+        bankName: "TBC Bank",
         transactionDate: "2026-11-09T00:00:00",
         amount: 100,
         partnerName: "Delta Dan",
@@ -110,6 +111,7 @@ export function bankTransactionRow(changes: Partial<IBankTransactionRow> = {}): 
 export function bankTransactionData(changes: Partial<IBankTransaction> = {}): IBankTransaction {
     return {
         id: 7,
+        bankName: "TBC Bank",
         transactionDate: "2026-11-09T00:00:00",
         amount: 100,
         currency: "GEL",

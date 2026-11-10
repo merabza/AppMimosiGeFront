@@ -109,7 +109,9 @@ const BankTransactions: FC = () => {
             <AlertMessages alertKind={EAlertKind.ApiMutation} />
             {importResult && (
                 <div className="text-muted small mb-2" data-testid="importSummary">
-                    {importSummary(importResult)}
+                    {importSummary(importResult).map((line) => (
+                        <div key={line}>{line}</div>
+                    ))}
                 </div>
             )}
             {(isFetching || !rows) && <Loading />}
@@ -125,6 +127,7 @@ const BankTransactionsTable: FC<{ rows: IBankTransactionRow[] }> = ({ rows }) =>
             <thead>
                 <tr>
                     <th>თარიღი</th>
+                    <th>ბანკი</th>
                     <th>თანხა</th>
                     <th>გადამხდელი</th>
                     <th>დანიშნულება</th>
@@ -138,6 +141,7 @@ const BankTransactionsTable: FC<{ rows: IBankTransactionRow[] }> = ({ rows }) =>
                 {rows.map((row) => (
                     <tr key={row.id} data-testid={`bankTransaction-${row.id}`}>
                         <td>{formatDate(row.transactionDate)}</td>
+                        <td>{row.bankName}</td>
                         <td className="text-end">{formatAmount(row.amount)}</td>
                         <td>{row.partnerName}</td>
                         <td>{row.purpose}</td>

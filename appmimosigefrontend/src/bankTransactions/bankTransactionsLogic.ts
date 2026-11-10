@@ -55,11 +55,14 @@ export function filterToSearchParams(filter: IBankTransactionsRequest): URLSearc
     return params;
 }
 
-export function importSummary(result: IImportBankTransactions): string {
-    return (
-        `ბანკიდან მიღებულია ${result.received} ჩარიცხვა (${result.periodFrom.slice(0, 10)} – ` +
-        `${result.periodTo.slice(0, 10)}), აქედან ახალი ${result.imported}: განაწილდა ${result.allocated}, ` +
-        `გაუნაწილებელია ${result.unallocated}`
+//თითო ინტეგრირებულ ანგარიშზე ერთი სტრიქონი: მიღების ჯამები ან შეცდომა (D173)
+export function importSummary(result: IImportBankTransactions): string[] {
+    return result.accounts.map((account) =>
+        account.error !== null
+            ? `${account.bankName}: ${account.error}`
+            : `${account.bankName}: მიღებულია ${account.received} ჩარიცხვა (${account.periodFrom.slice(0, 10)} – ` +
+              `${account.periodTo.slice(0, 10)}), აქედან ახალი ${account.imported}: განაწილდა ${account.allocated}, ` +
+              `გაუნაწილებელია ${account.unallocated}`
     );
 }
 
