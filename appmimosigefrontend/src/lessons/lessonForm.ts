@@ -110,6 +110,33 @@ export function clearStudentRow(
     };
 }
 
+//სტატუსი "არ გაუქმებულა". სხვა სტატუსით (გაუქმებული გაკვეთილი) დასწრება და აღდგენის თარიღი არ შეიძლება
+//(რეპორტი r12; სერვერიც ასე ამოწმებს: LessonVoidStatusRule)
+export const notCancelledLessonStatusId = "1";
+
+export function isCancelledStatus(lessonStatusId: string): boolean {
+    return lessonStatusId !== notCancelledLessonStatusId;
+}
+
+//გაუქმებულ გაკვეთილს დამსწრე მოსწავლე ან აღდგენის თარიღი აქვს: ასეთი ფორმა არ ინახება
+export function hasWrongVoidStatus(form: ILessonForm): boolean {
+    return (
+        isCancelledStatus(form.lessonStatusId) &&
+        (form.recoverDate !== "" || form.students.some((row) => row.present))
+    );
+}
+
+//გაუქმებული გაკვეთილისთვის: დასწრება და აღდგენის თარიღი იხსნება, დანარჩენი რჩება
+export function clearAttendanceAndRecoverDate(form: ILessonForm): ILessonForm {
+    return {
+        ...form,
+        recoverDate: "",
+        students: form.students.map((row) =>
+            row.present ? { ...row, present: false } : row
+        ),
+    };
+}
+
 //გენერატორის შეტანილი მონაცემი (D65): დასწრება, თემა, შეფასება ან კომენტარი
 export function hasEnteredData(row: ILessonStudentFormRow): boolean {
     return (

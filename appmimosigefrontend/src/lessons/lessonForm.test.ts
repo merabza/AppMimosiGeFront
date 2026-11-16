@@ -3,11 +3,15 @@
 import { describe, expect, it } from "vitest";
 import { lessonData } from "../testUtils/lessonsTestStore";
 import {
+    clearAttendanceAndRecoverDate,
     clearStudentRow,
     hasEnteredData,
+    hasWrongVoidStatus,
+    isCancelledStatus,
     lessonFormToRequest,
     lessonToForm,
     markAllPresent,
+    type ILessonForm,
     type ILessonStudentFormRow,
 } from "./lessonForm";
 
@@ -184,6 +188,43 @@ describe("clearStudentRow", () => {
             id: 21,
             hoursCount: 1.5,
         });
+    });
+});
+
+describe("void status (r12)", () => {
+    const form = (changes: Partial<ILessonForm>): ILessonForm => ({
+        ...lessonToForm(lessonData()),
+        students: [emptyRow, { ...emptyRow, id: 2 }],
+        ...changes,
+    });
+
+    it("counts every status but 'not cancelled' as cancelled", () => {
+        expect(isCancelledStatus("1")).toBe(false);
+        expect(isCancelledStatus("2")).toBe(true);
+        expect(isCancelledStatus("3")).toBe(true);
+    });
+
+    it.each([
+        ["held with attendance and a recover date", "1", "2026-10-05", true, false],
+        ["cancelled without attendance and recover date", "2", "", false, false],
+        ["cancelled with a recover date", "2", "2026-10-05", false, true],
+        ["cancelled with a present student", "3", "", true, true],
+    ])("%s is wrong: %s", (_, lessonStatusId, recoverDate, present, wrong) => {
+        expect(
+            hasWrongVoidStatus(
+                form({ lessonStatusId, recoverDate, students: [emptyRow, { ...emptyRow, id: 2, present }] })
+            )
+        ).toBe(wrong);
+    });
+
+    it("clears attendance and the recover date and keeps the rest", () => {
+        const present = { ...emptyRow, id: 2, present: true, theme: "x" };
+        const before = form({ lessonStatusId: "2", recoverDate: "2026-10-05", students: [emptyRow, present] });
+
+        const cleared = clearAttendanceAndRecoverDate(before);
+
+        expect(cleared).toEqual({ ...before, recoverDate: "", students: [emptyRow, { ...present, present: false }] });
+        expect(cleared.students[0]).toBe(emptyRow);
     });
 });
 

@@ -17,8 +17,11 @@ import {
 import { formatDate, formatDateTime } from "../studentContracts/dateFormat";
 import { groupEditRoute } from "../groups/groupsMenu";
 import {
+    clearAttendanceAndRecoverDate,
     clearStudentRow,
     hasEnteredData,
+    hasWrongVoidStatus,
+    isCancelledStatus,
     lessonFormToRequest,
     lessonToForm,
     markAllPresent,
@@ -117,6 +120,11 @@ const LessonEdit: FC = () => {
         JSON.stringify(lessonFormToRequest(form)) !==
             JSON.stringify(lessonFormToRequest(loadedForm));
 
+    //გაუქმებულ გაკვეთილზე დასწრება და აღდგენის თარიღი არ შეიყვანება; თუ ისინი უკვე არის (სტატუსი ახლა შეიცვალა ან
+    //ბაზაში ასე იყო), ფორმა არ ინახება, სანამ არ მოიხსნება
+    const cancelled = isCancelledStatus(form.lessonStatusId);
+    const wrongVoidStatus = hasWrongVoidStatus(form);
+
     const setField = (field: LessonField, value: string) => {
         setSaved(false);
         setForm((f) => (f ? { ...f, [field]: value } : f));
@@ -140,7 +148,7 @@ const LessonEdit: FC = () => {
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        if (!form) return;
+        if (!form || hasWrongVoidStatus(form)) return;
         dispatch(clearAlert(EAlertKind.ApiMutation));
         try {
             await updateLesson({
@@ -332,6 +340,7 @@ const LessonEdit: FC = () => {
                         <Form.Control
                             id="recoverDate"
                             type="date"
+                            disabled={cancelled}
                             value={form.recoverDate}
                             onChange={(e) =>
                                 setField("recoverDate", e.target.value)
@@ -352,6 +361,22 @@ const LessonEdit: FC = () => {
                 </Col>
             </Row>
 
+            {wrongVoidStatus && (
+                <Alert variant="warning">
+                    გაუქმებულ გაკვეთილს დამსწრე მოსწავლე და აღდგენის თარიღი ვერ ექნება: მოხსენით ისინი ან
+                    სტატუსი შეცვალეთ „არ გაუქმებულა“-თი.{" "}
+                    <Button
+                        size="sm"
+                        variant="outline-dark"
+                        onClick={() =>
+                            setForm((f) => (f ? clearAttendanceAndRecoverDate(f) : f))
+                        }
+                    >
+                        დასწრების და აღდგენის თარიღის მოხსნა
+                    </Button>
+                </Alert>
+            )}
+
             <Row className="mb-1">
                 <Col>
                     <h6 className="d-inline me-3">
@@ -360,7 +385,7 @@ const LessonEdit: FC = () => {
                     <Button
                         size="sm"
                         variant="outline-primary"
-                        disabled={form.students.length === 0}
+                        disabled={form.students.length === 0 || cancelled}
                         onClick={() => setStudents(markAllPresent)}
                     >
                         <FontAwesomeIcon icon="check-square" /> ყველა დაესწრო
@@ -391,6 +416,7 @@ const LessonEdit: FC = () => {
                                 <Form.Check
                                     aria-label={`${row.studentName}: დაესწრო`}
                                     data-lesson-cell={cellKey({ row: index, column: 0 })}
+                                    disabled={cancelled}
                                     checked={row.present}
                                     onChange={(e) =>
                                         setStudentField(index, "present", e.target.checked)
@@ -450,7 +476,7 @@ const LessonEdit: FC = () => {
                 <Button variant="secondary" className="me-2" onClick={handleClose}>
                     <FontAwesomeIcon icon="window-close" /> დახურვა
                 </Button>
-                <Button type="submit" disabled={saving}>
+                <Button type="submit" disabled={saving || wrongVoidStatus}>
                     <FontAwesomeIcon icon="save" /> შენახვა
                     {saving && <Spinner size="sm" animation="border" />}
                 </Button>

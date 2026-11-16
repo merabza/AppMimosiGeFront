@@ -183,7 +183,7 @@ describe("LessonEdit", () => {
 
     it("saves the journal and shows the saved values", async () => {
         const saved = lessonData({
-            lessonStatusId: 2,
+            lessonStatusId: 1,
             substituteTeacherContractId: 5,
             teacherLateMinutes: 10,
             recoverDate: "2026-10-05T00:00:00",
@@ -197,7 +197,6 @@ describe("LessonEdit", () => {
         });
         await renderLoaded();
 
-        fireEvent.change(screen.getByLabelText("სტატუსი"), { target: { value: "2" } });
         fireEvent.change(screen.getByLabelText("შემცვლელი"), { target: { value: "5" } });
         fireEvent.change(screen.getByLabelText("მასწ. დაგვიანება წთ."), { target: { value: "10" } });
         fireEvent.change(screen.getByLabelText("აღდგენის თარიღი"), { target: { value: "2026-10-05" } });
@@ -211,7 +210,7 @@ describe("LessonEdit", () => {
         const put = puts(calls)[0];
         expect(put.url).toBe(`${base}/9`);
         expect(put.body).toEqual({
-            lessonStatusId: 2,
+            lessonStatusId: 1,
             substituteTeacherContractId: 5,
             teacherLateMinutes: 10,
             recoverDate: "2026-10-05",
@@ -249,7 +248,62 @@ describe("LessonEdit", () => {
         //the form shows the lesson as it was loaded again after the save
         await waitFor(() => expect(screen.getByLabelText("შენიშვნა")).toHaveValue("trimmed"));
         expect(presentBox("Delta Dan")).not.toBeChecked();
-        expect(screen.getByLabelText("სტატუსი")).toHaveValue("2");
+        expect(screen.getByLabelText("სტატუსი")).toHaveValue("1");
+    });
+
+    // r12: a cancelled lesson has no present student and no recover date
+    it("blocks attendance and the recover date of a cancelled lesson until they are cleared", async () => {
+        const calls = serve();
+        await renderLoaded();
+        fireEvent.change(screen.getByLabelText("აღდგენის თარიღი"), { target: { value: "2026-10-05" } });
+
+        fireEvent.change(screen.getByLabelText("სტატუსი"), { target: { value: "2" } });
+
+        expect(screen.getByText(/გაუქმებულ გაკვეთილს დამსწრე მოსწავლე/)).toBeInTheDocument();
+        expect(saveButton()).toBeDisabled();
+        expect(presentBox("Gamma Gia")).toBeDisabled();
+        expect(presentBox("Gamma Gia")).toBeChecked();
+        expect(screen.getByRole("button", { name: /ყველა დაესწრო/ })).toBeDisabled();
+        expect(screen.getByLabelText("აღდგენის თარიღი")).toBeDisabled();
+
+        fireEvent.click(screen.getByRole("button", { name: "დასწრების და აღდგენის თარიღის მოხსნა" }));
+
+        expect(screen.queryByText(/გაუქმებულ გაკვეთილს დამსწრე მოსწავლე/)).not.toBeInTheDocument();
+        expect(presentBox("Gamma Gia")).not.toBeChecked();
+        expect(screen.getByLabelText("აღდგენის თარიღი")).toHaveValue("");
+        expect(cell("Gamma Gia", "თემა")).toHaveValue("Fractions");
+        fireEvent.click(saveButton());
+        await screen.findByText("შენახულია");
+        const body = puts(calls)[0].body as {
+            lessonStatusId: number;
+            recoverDate: string | null;
+            students: { present: boolean }[];
+        };
+        expect(body.lessonStatusId).toBe(2);
+        expect(body.recoverDate).toBeNull();
+        expect(body.students.map((s) => s.present)).toEqual([false, false, false]);
+    });
+
+    // a lesson that is already wrong in the database: not saved until fixed, also by a submit without the button
+    it("does not save a lesson loaded cancelled with attendance", async () => {
+        const calls = serve({ 9: lessonData({ lessonStatusId: 3 }) });
+        const { container } = await renderLoaded();
+
+        expect(screen.getByRole("alert").textContent).toBe(
+            "გაუქმებულ გაკვეთილს დამსწრე მოსწავლე და აღდგენის თარიღი ვერ ექნება: მოხსენით ისინი ან " +
+                "სტატუსი შეცვალეთ „არ გაუქმებულა“-თი. დასწრების და აღდგენის თარიღის მოხსნა"
+        );
+        expect(saveButton()).toBeDisabled();
+        fireEvent.submit(container.querySelector("form")!);
+        await screen.findByText("Gamma Gia");
+        expect(puts(calls)).toHaveLength(0);
+
+        fireEvent.change(screen.getByLabelText("სტატუსი"), { target: { value: "1" } });
+
+        expect(screen.queryByText(/გაუქმებულ გაკვეთილს დამსწრე მოსწავლე/)).not.toBeInTheDocument();
+        expect(saveButton()).toBeEnabled();
+        expect(presentBox("Gamma Gia")).toBeEnabled();
+        expect(screen.getByLabelText("აღდგენის თარიღი")).toBeEnabled();
     });
 
     it("hides 'saved' again on the next change", async () => {
