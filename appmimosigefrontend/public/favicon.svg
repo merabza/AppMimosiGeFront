@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <!-- მიმოსის ხატულა: ღია წიგნი მენიუს მწვანე ფერზე -->
+    <rect width="64" height="64" rx="14" fill="#2f5233"/>
+    <path d="M30 19C24 15 16 14 9 15V48C16 47 24 48 30 52Z" fill="#fff"/>
+    <path d="M34 19C40 15 48 14 55 15V48C48 47 40 48 34 52Z" fill="#afeeee"/>
+    <path d="M13 22C19 21.5 23 22.5 26 24M13 29C19 28.5 23 29.5 26 31M13 36C19 35.5 23 36.5 26 38" stroke="#2f5233" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+</svg>

@@ -9,10 +9,13 @@ import { toggleactive } from "./appcarcass/redux/slices/navMenuSlice";
 import RightsTopNavMenu from "./appcarcass/rights/RightsTopNavMenu";
 import ProfileTopNavMenu from "./appcarcass/user/ProfileTopNavMenu";
 import AcademicYearSelector from "./academicYear/AcademicYearSelector";
+import { usePageTitle } from "./pageTitle/usePageTitle";
 import type { FC } from "react";
 
 const TopNavMenu: FC = () => {
     const dispatch = useAppDispatch();
+    //Project: ჩანართის სათაური მენიუს მიხედვით
+    usePageTitle();
 
     return (
         <Navbar bg="light" expand="lg">
