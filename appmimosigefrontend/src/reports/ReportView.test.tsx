@@ -181,6 +181,37 @@ describe("ReportView", () => {
         expect(screen.getByTestId("reportView").className).toBe(className);
     });
 
+    // r07 colors the numbers of its data rows by their level, not its totals; another report has no colors
+    it.each([
+        ["r07UsedDayTimes", ["text-end report-load-2", "text-end report-load-6", "text-end"]],
+        ["r03RoomsAgenda", ["text-end", "text-end", "text-end"]],
+    ])("colors the load of %s", (key, classNames) => {
+        render(
+            <ReportView
+                report={roomsReport({
+                    key,
+                    columns: [
+                        { name: "startTime", caption: "დრო", type: "time" },
+                        { name: "weekDay1", caption: "1-ორ", type: "wholeNumber" },
+                        { name: "weekDay2", caption: "2-სამ", type: "wholeNumber" },
+                        { name: "weekDay3", caption: "3-ოთხ", type: "wholeNumber" },
+                    ],
+                    sections: [{ header: null, rows: [["10:00:00", 2, 6, null]], footer: null, newPage: false }],
+                    footerRows: [["დღეების ჯამები:", 7, 6, 0]],
+                })}
+            />
+        );
+
+        const table = screen.getByRole("table");
+        expect(Array.from(table.querySelectorAll("tbody td")).map((c) => c.className)).toEqual(["", ...classNames]);
+        expect(Array.from(table.querySelectorAll("tfoot td")).map((c) => c.className)).toEqual([
+            "",
+            "text-end",
+            "text-end",
+            "text-end",
+        ]);
+    });
+
     // a column caption longer than 20 characters (r22) is marked to wrap in print; a shorter one stays on one line
     it("marks the long captions", () => {
         render(

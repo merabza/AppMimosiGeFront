@@ -10,6 +10,7 @@ import {
     formatCell,
     isNumericColumn,
     isPeriodInvalid,
+    loadLevelClassName,
     missingRequiredCaption,
     reportQueryString,
     reportsOfCategory,
@@ -240,6 +241,26 @@ describe("isNumericColumn", () => {
         expect(isNumericColumn("wholeNumber")).toBe(true);
         expect(isNumericColumn("time")).toBe(false);
         expect(isNumericColumn("text")).toBe(false);
+    });
+});
+
+// r07's load colors: a level per whole number from 1 to 8, more than 8 is level 8; no class for anything else
+describe("loadLevelClassName", () => {
+    it.each([
+        [1, "report-load-1"],
+        [4, "report-load-4"],
+        [5, "report-load-5"],
+        [8, "report-load-8"],
+        [9, "report-load-8"],
+        [0, undefined],
+        [null, undefined],
+        ["3", undefined],
+    ])("the value %j has the class %j", (value, expected) => {
+        expect(loadLevelClassName(value, "wholeNumber")).toBe(expected);
+    });
+
+    it("has no class outside the whole number columns", () => {
+        expect(loadLevelClassName(3, "number")).toBeUndefined();
     });
 });
 

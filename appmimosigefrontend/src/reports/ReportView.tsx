@@ -3,7 +3,7 @@
 import type { FC } from "react";
 import { Table } from "react-bootstrap";
 import type { IReport, IReportColumn, ReportCell, ReportColumnType } from "../redux/types/reportsTypes";
-import { formatCell, isNumericColumn } from "./reportsForm";
+import { formatCell, isNumericColumn, loadLevelClassName } from "./reportsForm";
 
 type ReportViewProps = {
     report: IReport;
@@ -25,19 +25,38 @@ const longTextLength = 40;
 //ცხრილი ფურცლის სიგანეს არ გასცდეს; მოკლე სათაური ერთ ხაზზე რჩება (reports.css)
 const longCaptionLength = 20;
 
+//დატვირთვის ფერებიანი რეპორტები (r07): მონაცემების სტრიქონის მთელი რიცხვი თავისი სიდიდის ფერითაა
+//(loadLevelClassName, reports.css); ჯამების სტრიქონები ფერის გარეშეა
+const loadColorReportKeys = ["r07UsedDayTimes"];
+
 //რიცხვი მარჯვნივ სწორდება, გრძელი ტექსტი report-cell-long კლასით აღინიშნება
 function cellClassName(type: ReportColumnType, text: string): string | undefined {
     if (isNumericColumn(type)) return "text-end";
     return text.length > longTextLength ? "report-cell-long" : undefined;
 }
 
-function Cells({ row, columns }: { row: ReportCell[]; columns: IReportColumn[] }) {
+function Cells({
+    row,
+    columns,
+    loadColors = false,
+}: {
+    row: ReportCell[];
+    columns: IReportColumn[];
+    loadColors?: boolean;
+}) {
     return (
         <>
             {columns.map((column, index) => {
-                const text = formatCell(row[index] ?? null, column.type);
+                const value = row[index] ?? null;
+                const text = formatCell(value, column.type);
+                const className = [
+                    cellClassName(column.type, text),
+                    loadColors && loadLevelClassName(value, column.type),
+                ]
+                    .filter(Boolean)
+                    .join(" ");
                 return (
-                    <td key={column.name} className={cellClassName(column.type, text)}>
+                    <td key={column.name} className={className || undefined}>
                         {text}
                     </td>
                 );
@@ -53,6 +72,7 @@ const ReportView: FC<ReportViewProps> = ({ report }) => {
     const rowsCount = report.sections.reduce((count, section) => count + section.rows.length, 0);
     const wide = report.columns.length > wideReportColumns;
     const compact = compactPrintReportKeys.includes(report.key);
+    const loadColors = loadColorReportKeys.includes(report.key);
     const printAreaClassName = [
         "report-print-area",
         wide && "report-print-area-wide",
@@ -104,7 +124,7 @@ const ReportView: FC<ReportViewProps> = ({ report }) => {
                                 )}
                                 {section.rows.map((row, rowIndex) => (
                                     <tr key={rowIndex}>
-                                        <Cells row={row} columns={report.columns} />
+                                        <Cells row={row} columns={report.columns} loadColors={loadColors} />
                                     </tr>
                                 ))}
                                 {section.footer !== null && (

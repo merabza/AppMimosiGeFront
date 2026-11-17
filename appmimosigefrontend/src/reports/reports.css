@@ -10,6 +10,18 @@
     overflow-x: auto;
 }
 
+/* დატვირთვის ფერები (ReportView-ის loadColorReportKeys, r07): 1–4 მკრთალი ნაცრისფრიდან შავამდე, 5–8 მკრთალი
+   წითლიდან მუქ წითლამდე და მუქად. Bootstrap-ის striped სტრიქონის ფერს (--bs-table-color-state) გადაფარავს;
+   ტექსტის ფერი ბეჭდვისასაც ჩანს */
+.report-table td.report-load-1 { color: #9e9e9e; }
+.report-table td.report-load-2 { color: #828282; }
+.report-table td.report-load-3 { color: #4b4b4b; }
+.report-table td.report-load-4 { color: #000; }
+.report-table td.report-load-5 { color: #f08080; font-weight: bold; }
+.report-table td.report-load-6 { color: #e03c3c; font-weight: bold; }
+.report-table td.report-load-7 { color: #b40000; font-weight: bold; }
+.report-table td.report-load-8 { color: #780000; font-weight: bold; }
+
 /* ბეჭდვისას მხოლოდ რეპორტის შედეგი ჩანს: მენიუები, ფილტრები და ღილაკები იმალება, შედეგი მთელ სიგანეზეა,
    სვეტების სათაურები ყოველ გვერდზე მეორდება */
 @media print {

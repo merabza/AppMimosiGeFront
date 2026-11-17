@@ -144,3 +144,13 @@ export function formatCell(value: ReportCell, type: ReportColumnType): string {
 export function isNumericColumn(type: ReportColumnType): boolean {
     return type === "number" || type === "wholeNumber";
 }
+
+//დატვირთვის ყველაზე მაღალი დონე: ამაზე მეტი რიცხვი ამ დონის ფერისაა
+const maxLoadLevel = 8;
+
+//დატვირთვის დონის კლასი (report-load-1 … report-load-8) მთელი რიცხვის უჯრისთვის (r07, reports.css): 1–4 მკრთალი
+//ნაცრისფრიდან შავამდე, 5–8 მკრთალი წითლიდან მუქ წითლამდე და მუქად; ცარიელ და სხვა უჯრას კლასი არ აქვს
+export function loadLevelClassName(value: ReportCell, type: ReportColumnType): string | undefined {
+    if (type !== "wholeNumber" || typeof value !== "number" || value < 1) return undefined;
+    return `report-load-${Math.min(value, maxLoadLevel)}`;
+}
