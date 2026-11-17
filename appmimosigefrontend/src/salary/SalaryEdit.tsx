@@ -30,6 +30,7 @@ import {
 import { salaryEditUrl, salaryMenuKey, useHasSalaryRight } from "./salaryMenu";
 import SalaryParts from "./SalaryParts";
 import SalaryLines from "./SalaryLines";
+import DateInput from "../common/DateInput";
 
 //Access-ის FrmSalary-ის ერთი უწყისი: თარიღები, მდგენელები, გამოთვლა, სტრიქონები და გადარიცხვის ფაილი
 const SalaryEdit: FC = () => {
@@ -172,24 +173,22 @@ const SalaryEdit: FC = () => {
                     <Col sm="3">
                         <Form.Group className="mb-2">
                             <Form.Label htmlFor="shChargeDate">დარიცხვის თარიღი</Form.Label>
-                            <Form.Control
+                            <DateInput
                                 id="shChargeDate"
-                                type="date"
                                 required
                                 value={form.shChargeDate}
-                                onChange={(e) => setField("shChargeDate", e.target.value)}
+                                onChange={(value) => setField("shChargeDate", value)}
                             />
                         </Form.Group>
                     </Col>
                     <Col sm="3">
                         <Form.Group className="mb-2">
                             <Form.Label htmlFor="shTransferDate">გადარიცხვის თარიღი</Form.Label>
-                            <Form.Control
+                            <DateInput
                                 id="shTransferDate"
-                                type="date"
                                 required
                                 value={form.shTransferDate}
-                                onChange={(e) => setField("shTransferDate", e.target.value)}
+                                onChange={(value) => setField("shTransferDate", value)}
                             />
                         </Form.Group>
                     </Col>

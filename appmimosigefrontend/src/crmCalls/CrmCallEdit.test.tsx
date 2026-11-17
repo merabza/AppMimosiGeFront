@@ -18,6 +18,7 @@ import {
 } from "../testUtils/crmCallsTestStore";
 import type { ICrmCall } from "../redux/types/crmCallsTypes";
 import { nowDateTimeInputValue } from "./crmCallForm";
+import { parseDateTimeText } from "../common/dateText";
 import CrmCallEdit from "./CrmCallEdit";
 
 const listUrl = "/crmCalls?answerTypeId=3";
@@ -66,7 +67,9 @@ describe("CrmCallEdit", () => {
             expect(await screen.findByText("ახალი ზარი")).toBeInTheDocument();
             expect(field("ზარის ტიპი")).toHaveValue("1");
             //the minute may have turned since the form was filled
-            expect(field("თარიღი და დრო").value.slice(0, 13)).toBe(nowDateTimeInputValue().slice(0, 13));
+            expect(parseDateTimeText(field("თარიღი და დრო").value, false)?.slice(0, 13)).toBe(
+                nowDateTimeInputValue().slice(0, 13)
+            );
             expect(field("შედეგი")).toHaveValue("");
             expect(field("საუბრის შინაარსი")).toHaveValue("");
             expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveValue("");
@@ -230,9 +233,9 @@ describe("CrmCallEdit", () => {
             expect(studentInput()).toHaveValue("Alpha Ann / 6.001");
             expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("11");
             expect(field("ზარის ტიპი")).toHaveValue("1");
-            expect(field("თარიღი და დრო")).toHaveValue("2026-09-24T19:48");
+            expect(field("თარიღი და დრო")).toHaveValue("24.09.2026 19:48");
             expect(field("საუბრის შინაარსი")).toHaveValue("will pay next week");
-            expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveValue("2026-10-08");
+            expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveValue("08.10.2026");
         });
 
         // before the year's contracts arrive the name comes with the call

@@ -35,6 +35,7 @@ import {
     type IDepositsFilter,
 } from "./depositsFilter";
 import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
+import DateInput from "../common/DateInput";
 
 //გადაანგარიშების შედეგი ერთ ხაზად
 function recountSummary(result: IBalancesRecount): string {
@@ -145,14 +146,13 @@ const Deposits: FC = () => {
                     </Col>
                     <Col sm="2">
                         <Form.Label htmlFor="filterDateTo">თარიღამდე</Form.Label>
-                        <Form.Control
+                        <DateInput
                             id="filterDateTo"
-                            type="date"
                             required
                             value={filter.dateTo}
-                            onChange={(e) => {
+                            onChange={(value) => {
                                 //ცარიელი თარიღით სია არ ითვლება
-                                if (e.target.value !== "") setFilter({ dateTo: e.target.value });
+                                if (value !== "") setFilter({ dateTo: value });
                             }}
                         />
                     </Col>

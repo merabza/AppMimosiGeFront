@@ -14,7 +14,8 @@ import {
     workHourLookups,
 } from "../testUtils/workHoursTestStore";
 import type { IWorkHour } from "../redux/types/workHoursTypes";
-import { nowDateTimeInputValue, withSeconds } from "./workHourForm";
+import { nowDateTimeInputValue } from "./workHourForm";
+import { parseDateTimeText } from "../common/dateText";
 import WorkHourEdit from "./WorkHourEdit";
 
 const listUrl = "/workHours?teacherContractId=1";
@@ -49,7 +50,7 @@ const start = () => field("სამუშაოს დაწყება");
 const end = () => field("სამუშაოს დასრულება");
 const saveButton = (name: RegExp) => screen.getByRole("button", { name }) as HTMLButtonElement;
 //jsdom writes the value with milliseconds, a browser without zero seconds
-const moment = (input: HTMLInputElement) => withSeconds(input.value);
+const moment = (input: HTMLInputElement) => parseDateTimeText(input.value, true) ?? "";
 
 describe("WorkHourEdit", () => {
     describe("a new record", () => {
@@ -61,10 +62,8 @@ describe("WorkHourEdit", () => {
             expect(employee()).toHaveValue("");
             //the minute may have turned since the form was filled
             expect(moment(start()).slice(0, 13)).toBe(nowDateTimeInputValue().slice(0, 13));
-            expect(start()).toHaveAttribute("step", "1");
-            expect(start()).toHaveAttribute("type", "datetime-local");
-            expect(end()).toHaveAttribute("step", "1");
-            expect(end()).toHaveAttribute("type", "datetime-local");
+            expect(start()).toHaveAttribute("placeholder", "დდ.თთ.წწწწ სთ:წთ:წმ");
+            expect(end()).toHaveAttribute("placeholder", "დდ.თთ.წწწწ სთ:წთ:წმ");
             expect(end()).toHaveValue("");
             expect(screen.queryByRole("button", { name: /წაშლა/ })).not.toBeInTheDocument();
         });

@@ -15,6 +15,7 @@ import {
     newStudentRow,
     selectStudentContract,
 } from "./groupForm";
+import DateInput from "../common/DateInput";
 
 type GroupStudentsTabProps = {
     rows: IStudentFormRow[];
@@ -144,29 +145,27 @@ const GroupStudentsTab: FC<GroupStudentsTabProps> = (props) => {
                                 </td>
                             ))}
                             <td>
-                                <Form.Control
+                                <DateInput
                                     aria-label={`მოსწავლის დაწყება ${index + 1}`}
-                                    type="date"
                                     required
                                     value={row.startDate}
-                                    onChange={(e) =>
+                                    onChange={(value) =>
                                         setRow(row.key, (r) => ({
                                             ...r,
-                                            startDate: e.target.value,
+                                            startDate: value,
                                         }))
                                     }
                                 />
                             </td>
                             <td>
-                                <Form.Control
+                                <DateInput
                                     aria-label={`მოსწავლის დასრულება ${index + 1}`}
-                                    type="date"
                                     min={dayAfter(row.startDate)}
                                     value={row.endDate}
-                                    onChange={(e) =>
+                                    onChange={(value) =>
                                         setRow(row.key, (r) => ({
                                             ...r,
-                                            endDate: e.target.value,
+                                            endDate: value,
                                         }))
                                     }
                                 />

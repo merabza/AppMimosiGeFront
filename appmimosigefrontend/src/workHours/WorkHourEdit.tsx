@@ -27,6 +27,7 @@ import {
     workHourToForm,
 } from "./workHourForm";
 import { useHasWorkHoursRight, workHoursMenuKey } from "./workHoursMenu";
+import DateTimeInput from "../common/DateTimeInput";
 
 //Access-ის FrmWorkHours-ის სტრიქონი: თანამშრომელი, სამუშაოს დაწყება და დასრულება
 const WorkHourEdit: FC = () => {
@@ -159,30 +160,26 @@ const WorkHourEdit: FC = () => {
                 <Col sm="3">
                     <Form.Group className="mb-2">
                         <Form.Label htmlFor="whStart">სამუშაოს დაწყება</Form.Label>
-                        <Form.Control
+                        <DateTimeInput
                             id="whStart"
-                            type="datetime-local"
-                            step="1"
+                            seconds
                             required
                             value={form.whStart}
-                            onChange={(e) => setField("whStart", e.target.value)}
+                            onChange={(value) => setField("whStart", value)}
                         />
                     </Form.Group>
                 </Col>
                 <Col sm="3">
                     <Form.Group className="mb-2">
                         <Form.Label htmlFor="whEnd">სამუშაოს დასრულება</Form.Label>
-                        <Form.Control
+                        <DateTimeInput
                             id="whEnd"
-                            type="datetime-local"
-                            step="1"
+                            seconds
                             value={form.whEnd}
                             isInvalid={endInvalid}
-                            onChange={(e) => setField("whEnd", e.target.value)}
+                            feedback="დასრულება დაწყებაზე გვიან უნდა იყოს"
+                            onChange={(value) => setField("whEnd", value)}
                         />
-                        <Form.Control.Feedback type="invalid">
-                            დასრულება დაწყებაზე გვიან უნდა იყოს
-                        </Form.Control.Feedback>
                     </Form.Group>
                 </Col>
             </Row>

@@ -19,6 +19,7 @@ import { formatDate, toDateInputValue } from "../studentContracts/dateFormat";
 import { formatMoney } from "../salary/salaryForm";
 import { useHasNewAcademicYearRight } from "./academicYearMenu";
 import { closeGroupsTotals, defaultYearToClose, extraLessonWithDataErrorCode } from "./newAcademicYearWizard";
+import DateInput from "../common/DateInput";
 
 //„ახალი სასწავლო წლის" ოსტატი (ნაწილი 20): 1) მომდევნო წლის დამატება, 2) წინა წლის ჯგუფების დახურვა. ყოველი ნაბიჯი
 //ჯერ გადახედვით (dry-run) ეშვება, შესრულება კი დადასტურებას ითხოვს. კონტრაქტები და ახალი ჯგუფები ხელით იქმნება,
@@ -182,13 +183,12 @@ const NewAcademicYear: FC = () => {
                         </Col>
                         <Col sm="3">
                             <Form.Label htmlFor="closeDate">გაუქმების თარიღი</Form.Label>
-                            <Form.Control
+                            <DateInput
                                 id="closeDate"
-                                type="date"
                                 required
                                 value={closeDate}
-                                onChange={(e) => {
-                                    setCloseDate(e.target.value);
+                                onChange={(value) => {
+                                    setCloseDate(value);
                                     setCloseResult(null);
                                 }}
                             />

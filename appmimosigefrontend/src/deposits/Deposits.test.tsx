@@ -20,6 +20,7 @@ import type { IDeposits } from "../redux/types/balancesTypes";
 import { crmCallLookups } from "../testUtils/crmCallsTestStore";
 import { defaultDateTo } from "./depositsFilter";
 import Deposits from "./Deposits";
+import { formatDate } from "../studentContracts/dateFormat";
 
 const deposits: IDeposits = {
     totalBalance: -74.5,
@@ -193,7 +194,7 @@ describe("Deposits", () => {
         expect(lastRowsParams(calls)).toEqual({ academicYearId: "11", maximum: "0", dateTo: defaultDateTo() });
         expect(screen.getByLabelText("სასწავლო წელი")).toHaveValue("11");
         expect(screen.getByLabelText("მაქსიმუმი")).toHaveValue(0);
-        expect(screen.getByLabelText("თარიღამდე")).toHaveValue(defaultDateTo());
+        expect(screen.getByLabelText("თარიღამდე")).toHaveValue(formatDate(defaultDateTo()));
     });
 
     // part 20: the year chosen in the top menu is the default
@@ -399,8 +400,9 @@ describe("Deposits", () => {
 
         await screen.findByTestId("deposit-10");
         fireEvent.change(screen.getByLabelText("თარიღამდე"), { target: { value: "" } });
+        fireEvent.blur(screen.getByLabelText("თარიღამდე"));
 
-        expect(screen.getByLabelText("თარიღამდე")).toHaveValue("2026-10-06");
+        expect(screen.getByLabelText("თარიღამდე")).toHaveValue("06.10.2026");
         expect(location()).toContain("dateTo=2026-10-06");
     });
 

@@ -13,7 +13,7 @@ import type {
     IGroupFormLookups,
     IGroupStudentContractLookup,
 } from "../redux/types/groupsTypes";
-import { todayDateInputValue } from "../studentContracts/dateFormat";
+import { formatDate, todayDateInputValue } from "../studentContracts/dateFormat";
 import { setSelectedAcademicYearId } from "../redux/slices/academicYearSlice";
 import GroupEdit from "./GroupEdit";
 
@@ -225,7 +225,7 @@ describe("GroupEdit", () => {
         expect(tab(/განრიგი \(1\)/)).toBeInTheDocument();
         expect(screen.getByLabelText("მასწავლებელი 1")).toHaveValue("5");
         expect(screen.getByLabelText("ხელფასის სქემა 1")).toHaveValue("8");
-        expect(screen.getByLabelText("მასწავლებლის დაწყება 1")).toHaveValue("2026-09-01");
+        expect(screen.getByLabelText("მასწავლებლის დაწყება 1")).toHaveValue("01.09.2026");
         expect(screen.getByLabelText("მასწავლებლის დასრულება 1")).toHaveAttribute(
             "min",
             "2026-09-02"
@@ -350,7 +350,7 @@ describe("GroupEdit", () => {
         expect(screen.getByLabelText("4 კვირის საათები 3")).toHaveValue(12);
         expect(screen.getByLabelText("4 კვირის გადასახადი 3")).toHaveValue(72);
         expect(screen.getByLabelText("საათის ღირებულება 3")).toHaveValue(6);
-        expect(screen.getByLabelText("მოსწავლის დაწყება 3")).toHaveValue(todayDateInputValue());
+        expect(screen.getByLabelText("მოსწავლის დაწყება 3")).toHaveValue(formatDate(todayDateInputValue()));
         expect(screen.getByRole("columnheader", { name: "4 კვირის გადასახადი" })).toBeInTheDocument();
     });
 
@@ -519,7 +519,7 @@ describe("GroupEdit", () => {
         expect(screen.getByLabelText("კვირის დღე 1").closest("tr")).not.toHaveClass("table-danger");
     });
 
-    it("saves a chosen scheme, the student's period and the lesson hours", async () => {
+    it("saves a chosen scheme, the student's period and the lesson hours and period", async () => {
         const calls = serve();
         renderEditor("/editor/7");
         await screen.findByLabelText("ჯგუფის კოდი");
@@ -529,6 +529,7 @@ describe("GroupEdit", () => {
         change("მოსწავლის დასრულება 1", "2026-12-01");
         change("საათები 1", "2");
         change("განრიგის დაწყება 1", "2026-09-07");
+        change("განრიგის დასრულება 1", "20.12.2026");
         fireEvent.click(saveButton());
 
         expect(await screen.findByText("list page")).toBeInTheDocument();
@@ -538,7 +539,7 @@ describe("GroupEdit", () => {
                 { id: 200, startDate: "2026-09-05", endDate: "2026-12-01" },
                 { id: 201, startDate: "2026-09-01", endDate: "2026-10-01" },
             ],
-            dayTimePlaces: [{ id: 300, hoursCount: 2, startDate: "2026-09-07" }],
+            dayTimePlaces: [{ id: 300, hoursCount: 2, startDate: "2026-09-07", endDate: "2026-12-20" }],
         });
     });
 

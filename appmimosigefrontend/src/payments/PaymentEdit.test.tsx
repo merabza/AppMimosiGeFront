@@ -18,7 +18,7 @@ import {
     yearContracts,
 } from "../testUtils/paymentsTestStore";
 import type { IPayment } from "../redux/types/paymentsTypes";
-import { todayDateInputValue } from "../studentContracts/dateFormat";
+import { formatDate, todayDateInputValue } from "../studentContracts/dateFormat";
 import PaymentEdit from "./PaymentEdit";
 
 const listUrl = "/payments?academicYearId=&studentContractId=&bankAccountId=4&dateFrom=&dateTo=";
@@ -64,7 +64,7 @@ describe("PaymentEdit", () => {
             renderEditor("/paymentEdit");
 
             expect(await screen.findByText("ახალი გადახდა")).toBeInTheDocument();
-            expect(field("გადახდის თარიღი")).toHaveValue(todayDateInputValue());
+            expect(field("გადახდის თარიღი")).toHaveValue(formatDate(todayDateInputValue()));
             expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("11");
             expect(studentInput()).toHaveValue("");
             expect(field("თანხა")).toHaveValue(null);
@@ -219,7 +219,7 @@ describe("PaymentEdit", () => {
             expect(screen.getByText("გადახდა")).toBeInTheDocument();
             expect(studentInput()).toHaveValue("Alpha Ann 6.001");
             expect(screen.getByLabelText("მოსწავლე (კონტრაქტი): სასწავლო წელი")).toHaveValue("11");
-            expect(field("გადახდის თარიღი")).toHaveValue("2026-09-15");
+            expect(field("გადახდის თარიღი")).toHaveValue("15.09.2026");
             expect(field("დოკუმენტი")).toHaveValue("N 15");
             expect(field("ბანკი / გადახდის სახე")).toHaveValue("1");
         });

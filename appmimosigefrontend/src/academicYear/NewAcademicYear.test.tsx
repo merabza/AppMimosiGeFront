@@ -173,7 +173,7 @@ describe("NewAcademicYear", () => {
         await confirm();
 
         await waitFor(() => expect((screen.getByLabelText("სასწავლო წელი") as HTMLSelectElement).value).toBe("11"));
-        expect(screen.getByLabelText("გაუქმების თარიღი")).toHaveValue("2027-09-01");
+        expect(screen.getByLabelText("გაუქმების თარიღი")).toHaveValue("01.09.2027");
         expect(screen.queryByText(/დაიხურება 1 ჯგუფი/)).not.toBeInTheDocument();
     });
 
@@ -225,11 +225,11 @@ describe("NewAcademicYear", () => {
         await screen.findByText("2. წინა წლის ჯგუფების დახურვა");
 
         expect((screen.getByLabelText("სასწავლო წელი") as HTMLSelectElement).value).toBe("10");
-        expect(screen.getByLabelText("გაუქმების თარიღი")).toHaveValue("2026-09-01");
+        expect(screen.getByLabelText("გაუქმების თარიღი")).toHaveValue("01.09.2026");
 
         fireEvent.change(screen.getByLabelText("სასწავლო წელი"), { target: { value: "11" } });
 
-        expect(screen.getByLabelText("გაუქმების თარიღი")).toHaveValue("2027-09-01");
+        expect(screen.getByLabelText("გაუქმების თარიღი")).toHaveValue("01.09.2027");
     });
 
     it("closes the groups after the preview and the confirmation", async () => {

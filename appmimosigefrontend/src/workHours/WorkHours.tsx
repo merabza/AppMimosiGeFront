@@ -33,6 +33,7 @@ import {
     luftToRequest,
     type IWorkHoursListFilter,
 } from "./workHoursListFilter";
+import DateInput from "../common/DateInput";
 
 interface IGridState {
     offset: number;
@@ -216,20 +217,18 @@ const WorkHours: FC = () => {
                     </Col>
                     <Col sm="2">
                         <Form.Label htmlFor="filterDateFrom">თარიღიდან</Form.Label>
-                        <Form.Control
+                        <DateInput
                             id="filterDateFrom"
-                            type="date"
                             value={filter.dateFrom}
-                            onChange={(e) => setFilter({ dateFrom: e.target.value })}
+                            onChange={(value) => setFilter({ dateFrom: value })}
                         />
                     </Col>
                     <Col sm="2">
                         <Form.Label htmlFor="filterDateTo">თარიღამდე</Form.Label>
-                        <Form.Control
+                        <DateInput
                             id="filterDateTo"
-                            type="date"
                             value={filter.dateTo}
-                            onChange={(e) => setFilter({ dateTo: e.target.value })}
+                            onChange={(value) => setFilter({ dateTo: value })}
                         />
                     </Col>
                     <Col sm="4" className="d-flex align-items-end">

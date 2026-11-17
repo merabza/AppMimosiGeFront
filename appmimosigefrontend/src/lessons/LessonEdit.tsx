@@ -34,6 +34,7 @@ import {
     targetCell,
 } from "./lessonGridNavigation";
 import { lessonEditUrl, lessonsMenuKey, useHasLessonsRight } from "./lessonsMenu";
+import DateInput from "../common/DateInput";
 
 type LessonField =
     | "lessonStatusId"
@@ -337,13 +338,12 @@ const LessonEdit: FC = () => {
                 <Col sm="2">
                     <Form.Group>
                         <Form.Label htmlFor="recoverDate">აღდგენის თარიღი</Form.Label>
-                        <Form.Control
+                        <DateInput
                             id="recoverDate"
-                            type="date"
                             disabled={cancelled}
                             value={form.recoverDate}
-                            onChange={(e) =>
-                                setField("recoverDate", e.target.value)
+                            onChange={(value) =>
+                                setField("recoverDate", value)
                             }
                         />
                     </Form.Group>

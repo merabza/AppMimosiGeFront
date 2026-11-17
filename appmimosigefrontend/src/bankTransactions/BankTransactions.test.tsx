@@ -1,8 +1,11 @@
 //BankTransactions.test.tsx
 
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { Provider } from "react-redux";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { mockFetch, testBaseUrl, type FetchCall } from "../testUtils/testStore";
+import { mockFetch, testBaseUrl, type FetchCall, type FetchReply } from "../testUtils/testStore";
+import LocationProbe, { BackButton } from "../testUtils/LocationProbe";
 import type { MenuState } from "../testUtils/studentContractsTestStore";
 import {
     bankTransactionRow,
@@ -56,7 +59,7 @@ const rows = [
     }),
 ];
 
-function serve(reply?: (call: FetchCall) => { status: number; body?: unknown }) {
+function serve(reply?: (call: FetchCall) => FetchReply | Promise<FetchReply>) {
     return mockFetch(
         (call) => reply?.(call) ?? (call.method === "GET" ? { status: 200, body: rows } : { status: 200, body: imported })
     );
@@ -69,6 +72,10 @@ function renderList(url = "/bankTransactions", menu: MenuState = "withRight") {
 }
 
 const location = () => screen.getByTestId("location").textContent;
+
+const loadingText = "მიმდინარეობს ჩატვირთვა...";
+
+const never = () => new Promise<FetchReply>(() => {});
 
 describe("BankTransactions", () => {
     it("lists the transactions with their state", async () => {
@@ -115,7 +122,7 @@ describe("BankTransactions", () => {
 
         await screen.findByTestId("bankTransaction-7");
         expect(calls[0].url).toBe(`${base}?dateFrom=2026-11-01&filter=unallocated`);
-        expect(screen.getByLabelText("თარიღიდან")).toHaveValue("2026-11-01");
+        expect(screen.getByLabelText("თარიღიდან")).toHaveValue("01.11.2026");
         expect(screen.getByRole("button", { name: "ბოლომდე გაუნაწილებელი" })).toHaveClass("btn-primary");
 
         fireEvent.change(screen.getByLabelText("თარიღამდე"), { target: { value: "2026-11-09" } });
@@ -129,6 +136,101 @@ describe("BankTransactions", () => {
         fireEvent.click(screen.getByRole("button", { name: "ყველა" }));
         await waitFor(() => expect(location()).toBe("/bankTransactions?dateFrom=2026-11-01&dateTo=2026-11-09"));
         await waitFor(() => expect(calls[calls.length - 1].url).toBe(`${base}?dateFrom=2026-11-01&dateTo=2026-11-09`));
+    });
+
+    it("takes a typed start date into the address and the request", async () => {
+        const calls = serve();
+        renderList();
+        await screen.findByTestId("bankTransaction-7");
+
+        fireEvent.change(screen.getByLabelText("თარიღიდან"), { target: { value: "05.11.2026" } });
+
+        await waitFor(() => expect(location()).toBe("/bankTransactions?dateFrom=2026-11-05"));
+        await waitFor(() => expect(calls[calls.length - 1].url).toBe(`${base}?dateFrom=2026-11-05`));
+    });
+
+    it("highlights only the chosen filter", async () => {
+        serve();
+        renderList("/bankTransactions?filter=ignored");
+        await screen.findByTestId("bankTransaction-7");
+
+        expect(screen.getByRole("button", { name: "არ არის მოსწავლის" })).toHaveClass("btn-primary");
+        expect(screen.getByRole("button", { name: "ყველა" })).toHaveClass("btn-outline-secondary");
+        expect(screen.getByRole("button", { name: "ბოლომდე გაუნაწილებელი" })).toHaveClass(
+            "btn-outline-secondary"
+        );
+    });
+
+    // the filter replaces the address, so "back" leaves the list instead of stepping through the filters
+    it("replaces the history entry when the filter changes", async () => {
+        serve();
+        render(
+            <Provider store={createBankTransactionsStore()}>
+                <MemoryRouter initialEntries={["/payments", "/bankTransactions"]} initialIndex={1}>
+                    <Routes>
+                        <Route path="/bankTransactions" element={<BankTransactions />} />
+                        <Route path="/payments" element={<div>payments page</div>} />
+                    </Routes>
+                    <LocationProbe />
+                    <BackButton />
+                </MemoryRouter>
+            </Provider>
+        );
+        await screen.findByTestId("bankTransaction-7");
+        fireEvent.click(screen.getByRole("button", { name: "არ არის მოსწავლის" }));
+        await waitFor(() => expect(location()).toBe("/bankTransactions?filter=ignored"));
+
+        fireEvent.click(screen.getByRole("button", { name: "test back" }));
+
+        expect(location()).toBe("/payments");
+    });
+
+    // the form only holds the filter: submitting it (Enter in a date field) must not reload the page
+    it("does not submit the filter form", async () => {
+        serve();
+        renderList();
+        await screen.findByTestId("bankTransaction-7");
+        const form = screen.getByLabelText("თარიღიდან").closest("form")!;
+        const submit = createEvent.submit(form);
+
+        fireEvent(form, submit);
+
+        expect(submit.defaultPrevented).toBe(true);
+    });
+
+    it("shows the loading state until the transactions arrive", async () => {
+        serve(never);
+        renderList();
+
+        expect(await screen.findByText(loadingText)).toBeInTheDocument();
+        expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    });
+
+    // while the rows of a new filter load, the old ones are not shown as if they were the answer
+    it("hides the old rows while the new ones load", async () => {
+        let gets = 0;
+        serve((call) => (call.method === "GET" && gets++ > 0 ? never() : { status: 200, body: rows }));
+        renderList();
+        await screen.findByTestId("bankTransaction-7");
+        expect(screen.queryByText(loadingText)).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "არ არის მოსწავლის" }));
+
+        expect(await screen.findByText(loadingText)).toBeInTheDocument();
+        expect(screen.queryByTestId("bankTransaction-7")).not.toBeInTheDocument();
+    });
+
+    it("shows a spinner on the import button while the import runs", async () => {
+        serve((call) => (call.method === "POST" ? never() : { status: 200, body: rows }));
+        renderList();
+        await screen.findByTestId("bankTransaction-7");
+        const button = screen.getByRole("button", { name: "ბანკიდან განახლება" });
+        expect(button.querySelector(".spinner-border")).toBeNull();
+
+        fireEvent.click(button);
+
+        await waitFor(() => expect(button).toBeDisabled());
+        expect(button.querySelector(".spinner-border")).not.toBeNull();
     });
 
     it("says when there are no transactions", async () => {

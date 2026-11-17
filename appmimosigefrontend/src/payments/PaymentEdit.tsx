@@ -32,6 +32,7 @@ import {
     useHasPaymentsRight,
 } from "./paymentsMenu";
 import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
+import DateInput from "../common/DateInput";
 
 //Access-ის FrmPayments-ის სტრიქონი: მოსწავლის კონტრაქტი, თარიღი, თანხა, დოკუმენტი, ბანკი და (უფლებით) შემოწმება
 const PaymentEdit: FC = () => {
@@ -190,12 +191,11 @@ const PaymentEdit: FC = () => {
                     <Col sm="2">
                         <Form.Group className="mb-2">
                             <Form.Label htmlFor="payDate">გადახდის თარიღი</Form.Label>
-                            <Form.Control
+                            <DateInput
                                 id="payDate"
-                                type="date"
                                 required
                                 value={form.payDate}
-                                onChange={(e) => setField("payDate", e.target.value)}
+                                onChange={(value) => setField("payDate", value)}
                             />
                         </Form.Group>
                     </Col>

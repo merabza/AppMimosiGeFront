@@ -38,10 +38,10 @@ describe("CrmCallFields", () => {
         renderFields();
 
         expect(field("ზარის ტიპი")).toHaveValue("1");
-        expect(field("თარიღი და დრო")).toHaveValue("2026-09-24T19:48");
+        expect(field("თარიღი და დრო")).toHaveValue("24.09.2026 19:48");
         expect(field("შედეგი")).toHaveValue("3");
         expect(field("საუბრის შინაარსი")).toHaveValue("will pay next week");
-        expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveValue("2026-10-08");
+        expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveValue("08.10.2026");
     });
 
     // a new call has no result yet: the empty choice asks for one
@@ -83,8 +83,8 @@ describe("CrmCallFields", () => {
     it("takes the date with the time and the date to pay by as a day", () => {
         renderFields();
 
-        expect(field("თარიღი და დრო")).toHaveAttribute("type", "datetime-local");
-        expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveAttribute("type", "date");
+        expect(field("თარიღი და დრო")).toHaveAttribute("placeholder", "დდ.თთ.წწწწ სთ:წთ");
+        expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveAttribute("placeholder", "დდ.თთ.წწწწ");
         expect(field("საუბრის შინაარსი").tagName).toBe("TEXTAREA");
     });
 

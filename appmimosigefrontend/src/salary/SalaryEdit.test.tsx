@@ -20,6 +20,7 @@ import {
 import type { ISalaryHeader } from "../redux/types/salaryTypes";
 import { newSalaryHeaderForm } from "./salaryForm";
 import SalaryEdit from "./SalaryEdit";
+import { formatDate } from "../studentContracts/dateFormat";
 
 afterEach(() => {
     vi.restoreAllMocks();
@@ -76,8 +77,8 @@ describe("SalaryEdit", () => {
             renderEditor("/salaryEdit");
 
             expect(await screen.findByText("ახალი უწყისი")).toBeInTheDocument();
-            expect(field("დარიცხვის თარიღი")).toHaveValue(newSalaryHeaderForm().shChargeDate);
-            expect(field("გადარიცხვის თარიღი")).toHaveValue(newSalaryHeaderForm().shTransferDate);
+            expect(field("დარიცხვის თარიღი")).toHaveValue(formatDate(newSalaryHeaderForm().shChargeDate));
+            expect(field("გადარიცხვის თარიღი")).toHaveValue(formatDate(newSalaryHeaderForm().shTransferDate));
             expect(screen.queryByRole("button", { name: /წაშლა/ })).not.toBeInTheDocument();
             expect(screen.queryByRole("button", { name: /გამოთვლა/ })).not.toBeInTheDocument();
             expect(screen.queryByText("სტრიქონები")).not.toBeInTheDocument();
@@ -122,8 +123,8 @@ describe("SalaryEdit", () => {
             renderEditor("/salaryEdit/2");
 
             expect(await screen.findByText("ხელფასის უწყისი 05.10.2026")).toBeInTheDocument();
-            expect(field("დარიცხვის თარიღი")).toHaveValue("2026-10-05");
-            expect(field("გადარიცხვის თარიღი")).toHaveValue("2026-10-04");
+            expect(field("დარიცხვის თარიღი")).toHaveValue("05.10.2026");
+            expect(field("გადარიცხვის თარიღი")).toHaveValue("04.10.2026");
             expect(tableRows(0)).toEqual([
                 ["თანამშრომელი", "ტიპი", "თანხა", ""],
                 ["Alpha Ann / T3.01", "ხელფასი ჩატარებული გაკვეთილების მიხედვით", "99.50", "გამოთვლით"],
@@ -465,8 +466,8 @@ describe("SalaryEdit", () => {
             expect(await screen.findByText(loading)).toBeInTheDocument();
             answerThree(answeredThree);
             expect(await screen.findByText("ხელფასის უწყისი 05.12.2026")).toBeInTheDocument();
-            expect(field("დარიცხვის თარიღი")).toHaveValue("2026-12-05");
-            expect(field("გადარიცხვის თარიღი")).toHaveValue("2026-12-04");
+            expect(field("დარიცხვის თარიღი")).toHaveValue("05.12.2026");
+            expect(field("გადარიცხვის თარიღი")).toHaveValue("04.12.2026");
         });
 
         it("drops the count result when another header is opened", async () => {
@@ -508,7 +509,7 @@ describe("SalaryEdit", () => {
             answer({ status: 200, text: JSON.stringify(salaryHeaderData()), headers: json });
 
             expect(await screen.findByText(title)).toBeInTheDocument();
-            expect(field("დარიცხვის თარიღი")).toHaveValue("2026-10-05");
+            expect(field("დარიცხვის თარიღი")).toHaveValue("05.10.2026");
         });
 
         // a part change reloads the header; the dates typed meanwhile stay

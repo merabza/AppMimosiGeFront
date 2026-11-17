@@ -13,6 +13,7 @@ import {
 import { requestedYear, yearContracts } from "../testUtils/paymentsTestStore";
 import { previousMonthToDate } from "./statementFilter";
 import ChargesAndPayments from "./ChargesAndPayments";
+import { formatDate } from "../studentContracts/dateFormat";
 
 const rows = {
     allRowsCount: 2,
@@ -81,8 +82,8 @@ describe("ChargesAndPayments", () => {
             ],
             sortByFields: [],
         });
-        expect(screen.getByLabelText("თარიღიდან")).toHaveValue(range.dateFrom);
-        expect(screen.getByLabelText("თარიღამდე")).toHaveValue(range.dateTo);
+        expect(screen.getByLabelText("თარიღიდან")).toHaveValue(formatDate(range.dateFrom));
+        expect(screen.getByLabelText("თარიღამდე")).toHaveValue(formatDate(range.dateTo));
     });
 
     it("shows the id, the kind, the date, the student, the document, the amount and the balance in order", async () => {

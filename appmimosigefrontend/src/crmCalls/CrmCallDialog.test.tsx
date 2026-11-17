@@ -13,6 +13,7 @@ import {
 } from "../testUtils/crmCallsTestStore";
 import type { ICrmCallsRowsData } from "../redux/types/crmCallsTypes";
 import { nowDateTimeInputValue } from "./crmCallForm";
+import { parseDateTimeText } from "../common/dateText";
 import CrmCallDialog from "./CrmCallDialog";
 
 const contract = { studentContractId: 10, academicYearId: 11, name: "Alpha Ann / 6.001" };
@@ -64,7 +65,9 @@ describe("CrmCallDialog", () => {
 
         expect(await screen.findByText("ზარი: Alpha Ann / 6.001")).toBeInTheDocument();
         await waitFor(() => expect(field("ზარის ტიპი")).toHaveValue("1"));
-        expect(field("თარიღი და დრო").value.slice(0, 13)).toBe(nowDateTimeInputValue().slice(0, 13));
+        expect(parseDateTimeText(field("თარიღი და დრო").value, false)?.slice(0, 13)).toBe(
+            nowDateTimeInputValue().slice(0, 13)
+        );
         expect(field("შედეგი")).toHaveValue("");
         expect(field("უნდა გადაიხადოს თარიღამდე")).toHaveValue("");
     });

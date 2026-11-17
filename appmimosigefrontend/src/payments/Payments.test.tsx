@@ -17,6 +17,7 @@ import {
 } from "../testUtils/paymentsTestStore";
 import { currentMonthToDate } from "./paymentsListFilter";
 import Payments from "./Payments";
+import { formatDate } from "../studentContracts/dateFormat";
 
 const rows = { allRowsCount: 1, offset: 0, totalAmount: 10728.75, rows: [paymentRow] };
 const uncheckedRows = { ...rows, rows: [{ ...paymentRow, checked: false }] };
@@ -74,8 +75,8 @@ describe("Payments", () => {
             { fieldName: "dateFrom", value: month.dateFrom },
             { fieldName: "dateTo", value: month.dateTo },
         ]);
-        expect(screen.getByLabelText("თარიღიდან")).toHaveValue(month.dateFrom);
-        expect(screen.getByLabelText("თარიღამდე")).toHaveValue(month.dateTo);
+        expect(screen.getByLabelText("თარიღიდან")).toHaveValue(formatDate(month.dateFrom));
+        expect(screen.getByLabelText("თარიღამდე")).toHaveValue(formatDate(month.dateTo));
     });
 
     it("shows the student, the date, the amount, the document and the bank in order", async () => {

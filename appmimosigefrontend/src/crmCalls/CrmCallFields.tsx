@@ -4,6 +4,8 @@ import type { FC } from "react";
 import { Col, Form, Row } from "react-bootstrap";
 import type { ILookupItem } from "../redux/types/studentContractsTypes";
 import type { ICrmCallForm } from "./crmCallForm";
+import DateInput from "../common/DateInput";
+import DateTimeInput from "../common/DateTimeInput";
 
 type CrmCallFieldsProps = {
     form: ICrmCallForm;
@@ -38,12 +40,11 @@ const CrmCallFields: FC<CrmCallFieldsProps> = ({ form, callTypes, answerTypes, o
             <Col sm="3">
                 <Form.Group className="mb-2">
                     <Form.Label htmlFor="callDate">თარიღი და დრო</Form.Label>
-                    <Form.Control
+                    <DateTimeInput
                         id="callDate"
-                        type="datetime-local"
                         required
                         value={form.callDate}
-                        onChange={(e) => onChange("callDate", e.target.value)}
+                        onChange={(value) => onChange("callDate", value)}
                     />
                 </Form.Group>
             </Col>
@@ -82,11 +83,10 @@ const CrmCallFields: FC<CrmCallFieldsProps> = ({ form, callTypes, answerTypes, o
             <Col sm="3">
                 <Form.Group className="mb-2">
                     <Form.Label htmlFor="mustPayDate">უნდა გადაიხადოს თარიღამდე</Form.Label>
-                    <Form.Control
+                    <DateInput
                         id="mustPayDate"
-                        type="date"
                         value={form.mustPayDate}
-                        onChange={(e) => onChange("mustPayDate", e.target.value)}
+                        onChange={(value) => onChange("mustPayDate", value)}
                     />
                 </Form.Group>
             </Col>

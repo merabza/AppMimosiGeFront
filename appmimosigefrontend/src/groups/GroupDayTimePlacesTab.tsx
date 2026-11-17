@@ -11,6 +11,7 @@ import {
     type IDayTimePlaceFormRow,
     newDayTimePlaceRow,
 } from "./groupForm";
+import DateInput from "../common/DateInput";
 
 type GroupDayTimePlacesTabProps = {
     rows: IDayTimePlaceFormRow[];
@@ -123,29 +124,27 @@ const GroupDayTimePlacesTab: FC<GroupDayTimePlacesTabProps> = (props) => {
                                 )}
                             </td>
                             <td>
-                                <Form.Control
+                                <DateInput
                                     aria-label={`განრიგის დაწყება ${index + 1}`}
-                                    type="date"
                                     required
                                     value={row.startDate}
-                                    onChange={(e) =>
+                                    onChange={(value) =>
                                         setRow(row.key, (r) => ({
                                             ...r,
-                                            startDate: e.target.value,
+                                            startDate: value,
                                         }))
                                     }
                                 />
                             </td>
                             <td>
-                                <Form.Control
+                                <DateInput
                                     aria-label={`განრიგის დასრულება ${index + 1}`}
-                                    type="date"
                                     min={dayAfter(row.startDate)}
                                     value={row.endDate}
-                                    onChange={(e) =>
+                                    onChange={(value) =>
                                         setRow(row.key, (r) => ({
                                             ...r,
-                                            endDate: e.target.value,
+                                            endDate: value,
                                         }))
                                     }
                                 />

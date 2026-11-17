@@ -40,6 +40,7 @@ import {
 import { useGetAcademicYearsQuery } from "../redux/api/academicYearApi";
 import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
 import "./reports.css";
+import DateInput from "../common/DateInput";
 
 //პარამეტრები, რომლებსაც ჩამოსაშლელი სია სჭირდება
 const lookupParameters: ReportParameterName[] = ["teacherId", "courseId", "studentId"];
@@ -170,12 +171,11 @@ const Reports: FC = () => {
         return (
             <Form.Group key={parameter.name} className="mb-2">
                 <Form.Label htmlFor={id}>{parameter.caption}</Form.Label>
-                <Form.Control
+                <DateInput
                     id={id}
-                    type="date"
                     required={parameter.required}
                     value={state.parameters[parameter.name]}
-                    onChange={(e) => setParameter(parameter.name, e.target.value)}
+                    onChange={(value) => setParameter(parameter.name, value)}
                 />
             </Form.Group>
         );

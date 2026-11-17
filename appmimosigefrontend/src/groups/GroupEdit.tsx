@@ -35,6 +35,7 @@ import GroupStudentsTab from "./GroupStudentsTab";
 import GroupDayTimePlacesTab from "./GroupDayTimePlacesTab";
 import GroupLessonsGenerator from "../lessonGenerator/GroupLessonsGenerator";
 import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
+import DateInput from "../common/DateInput";
 
 type GroupTab = "teachers" | "students" | "dayTimePlaces";
 
@@ -298,12 +299,11 @@ const GroupEdit: FC = () => {
                 <Col sm="2">
                     <Form.Group>
                         <Form.Label htmlFor="voidDate">გაუქმება</Form.Label>
-                        <Form.Control
+                        <DateInput
                             id="voidDate"
-                            type="date"
                             value={form.voidDate}
-                            onChange={(e) =>
-                                setField("voidDate", e.target.value)
+                            onChange={(value) =>
+                                setField("voidDate", value)
                             }
                         />
                     </Form.Group>

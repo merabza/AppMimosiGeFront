@@ -18,7 +18,7 @@ import type {
 import { studentContractsApi } from "../redux/api/studentContractsApi";
 import { setSelectedAcademicYearId } from "../redux/slices/academicYearSlice";
 import StudentContractEdit from "./StudentContractEdit";
-import { todayDateInputValue } from "./dateFormat";
+import { formatDate, todayDateInputValue } from "./dateFormat";
 
 const lookups: IStudentContractFormLookups = {
     currentAcademicYearId: 11,
@@ -184,7 +184,7 @@ describe("StudentContractEdit", () => {
         // the number comes with a second request, after the lookups
         await waitFor(() => expect(screen.getByLabelText("კ. N")).toHaveValue("6.132"));
         await flush();
-        expect(screen.getByLabelText("თარიღი")).toHaveValue(todayDateInputValue());
+        expect(screen.getByLabelText("თარიღი")).toHaveValue(formatDate(todayDateInputValue()));
         expect(screen.getByLabelText("სასწ. წელი")).toHaveValue("11");
         expect(screen.getByLabelText("4 კვირის საათები 1")).toHaveValue(8);
         expect(screen.getByLabelText("4 კვირის გადასახადი 1")).toHaveValue(48);
@@ -463,7 +463,7 @@ describe("StudentContractEdit", () => {
 
         expect(await screen.findByText("მოსწავლის კონტრაქტი 6.007")).toBeInTheDocument();
         expect(screen.getByLabelText("კ. N")).toHaveValue("6.007");
-        expect(screen.getByLabelText("თარიღი")).toHaveValue("2026-09-01");
+        expect(screen.getByLabelText("თარიღი")).toHaveValue("01.09.2026");
         expect(screen.getByLabelText("მოსწავლე")).toHaveValue("Alpha Ann");
         expect(screen.getByLabelText(/გადამხდელი/)).toHaveValue("Beta Bob");
         expect(screen.getByLabelText("მოსწავლის სტატუსი")).toHaveValue("9");

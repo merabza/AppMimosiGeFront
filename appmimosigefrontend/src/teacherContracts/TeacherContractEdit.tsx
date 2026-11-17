@@ -31,6 +31,7 @@ import {
     teacherContractsMenuKey,
     useHasTeacherContractsRight,
 } from "./teacherContractsMenu";
+import DateInput from "../common/DateInput";
 
 type TextField =
     | "contractNumber"
@@ -157,6 +158,22 @@ const TeacherContractEdit: FC = () => {
         </Form.Group>
     );
 
+    const dateInput = (
+        field: TextField,
+        label: string,
+        attributes: { required?: boolean; min?: string } = {}
+    ) => (
+        <Form.Group className="mb-2">
+            <Form.Label htmlFor={field}>{label}</Form.Label>
+            <DateInput
+                id={field}
+                {...attributes}
+                value={form[field]}
+                onChange={(value) => setField(field, value)}
+            />
+        </Form.Group>
+    );
+
     const select = (
         field: TextField,
         label: string,
@@ -228,8 +245,7 @@ const TeacherContractEdit: FC = () => {
                     })}
                 </Col>
                 <Col sm="3">
-                    {textInput("contractDate", "კონტრაქტის თარიღი", {
-                        type: "date",
+                    {dateInput("contractDate", "კონტრაქტის თარიღი", {
                         required: true,
                     })}
                 </Col>
@@ -257,8 +273,7 @@ const TeacherContractEdit: FC = () => {
 
             <Row>
                 <Col sm="3">
-                    {textInput("contractEndDate", "კონტრაქტის დასრულების თარიღი", {
-                        type: "date",
+                    {dateInput("contractEndDate", "კონტრაქტის დასრულების თარიღი", {
                         min: form.contractDate,
                     })}
                 </Col>

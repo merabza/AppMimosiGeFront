@@ -15,7 +15,7 @@ import type {
     ITeacherContract,
     ITeacherContractFormLookups,
 } from "../redux/types/teacherContractsTypes";
-import { todayDateInputValue } from "../studentContracts/dateFormat";
+import { formatDate, todayDateInputValue } from "../studentContracts/dateFormat";
 import TeacherContractEdit from "./TeacherContractEdit";
 
 const lookups: ITeacherContractFormLookups = {
@@ -144,7 +144,7 @@ describe("TeacherContractEdit", () => {
         renderEditor("/editor/7");
 
         expect(await screen.findByLabelText("კონტრაქტის ნომერი")).toHaveValue("T3.07");
-        expect(screen.getByLabelText("კონტრაქტის თარიღი")).toHaveValue("2025-09-01");
+        expect(screen.getByLabelText("კონტრაქტის თარიღი")).toHaveValue("01.09.2025");
         expect(screen.getByLabelText("თანამშრომელი")).toHaveValue("Alpha Ann");
         expect(screen.getByLabelText("ანგარიშის ნომერი")).toHaveValue("GE00TB0000000000000000");
         expect(screen.getByLabelText("ბანკის კოდი")).toHaveValue("TBCBGE22");
@@ -204,7 +204,7 @@ describe("TeacherContractEdit", () => {
         renderEditor("/editor");
 
         const number = await screen.findByLabelText("კონტრაქტის ნომერი");
-        expect(screen.getByLabelText("კონტრაქტის თარიღი")).toHaveValue(todayDateInputValue());
+        expect(screen.getByLabelText("კონტრაქტის თარიღი")).toHaveValue(formatDate(todayDateInputValue()));
         expect(screen.queryByRole("button", { name: /წაშლა/ })).not.toBeInTheDocument();
         fireEvent.change(number, { target: { value: "T3.12" } });
         const teacher = screen.getByLabelText("თანამშრომელი");
@@ -370,9 +370,9 @@ describe("TeacherContractEdit", () => {
         const contractDate = screen.getByLabelText("კონტრაქტის თარიღი");
         const endDate = screen.getByLabelText("კონტრაქტის დასრულების თარიღი");
         const amount = screen.getByLabelText("განაცემის ყოველთვიური ფიქსირებული რაოდენობა");
-        expect(contractDate).toHaveAttribute("type", "date");
+        expect(contractDate).toHaveAttribute("placeholder", "დდ.თთ.წწწწ");
         expect(contractDate).toBeRequired();
-        expect(endDate).toHaveAttribute("type", "date");
+        expect(endDate).toHaveAttribute("placeholder", "დდ.თთ.წწწწ");
         expect(endDate).not.toBeRequired();
         // the end date may not be before the contract date
         expect(endDate).toHaveAttribute("min", "2025-09-01");
@@ -391,6 +391,10 @@ describe("TeacherContractEdit", () => {
         fireEvent.change(contractDate, { target: { value: "2025-10-05" } });
 
         expect(endDate).toHaveAttribute("min", "2025-10-05");
+        fireEvent.change(endDate, { target: { value: "04.10.2025" } });
+        expect(endDate).toBeInvalid();
+        fireEvent.change(endDate, { target: { value: "05.10.2025" } });
+        expect(endDate).toBeValid();
     });
 
     it("sends the changed flags, choices and texts", async () => {

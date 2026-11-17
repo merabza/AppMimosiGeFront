@@ -153,7 +153,7 @@ describe("Reports", () => {
         expect(optionNames(reportSelect())).toEqual(["ოთახების ცხრილი", "ოთახების გადაფარვა", "პერიოდის რეპორტი"]);
         expect(screen.getByText("ოთახების გაკვეთილები კვირის დღეების მიხედვით").tagName).toBe("P");
         expect(screen.queryByText(/შევსებული უნდა იყოს/)).not.toBeInTheDocument();
-        expect((screen.getByLabelText("თარიღისთვის") as HTMLInputElement).value).toBe("2026-10-02");
+        expect((screen.getByLabelText("თარიღისთვის") as HTMLInputElement).value).toBe("02.10.2026");
         expect(screen.getByLabelText("თარიღისთვის")).toBeRequired();
         expect(screen.queryByLabelText("თარიღიდან")).not.toBeInTheDocument();
         expect(viewButton()).toBeEnabled();
@@ -200,7 +200,7 @@ describe("Reports", () => {
         expect(categorySelect()).toHaveValue("schedule");
         expect(optionNames(reportSelect())).toEqual(["ოთახების ცხრილი", "ოთახების გადაფარვა"]);
         expect(reportSelect()).toHaveValue("r06RoomOver");
-        expect((screen.getByLabelText("თარიღისთვის") as HTMLInputElement).value).toBe("2026-09-20");
+        expect((screen.getByLabelText("თარიღისთვის") as HTMLInputElement).value).toBe("20.09.2026");
     });
 
     it("shows the report for the date", async () => {
@@ -428,8 +428,8 @@ describe("Reports", () => {
         it("shows the period from the first of the month and loads the lookups", async () => {
             const calls = await openPeriodReport();
 
-            expect((screen.getByLabelText("თარიღიდან") as HTMLInputElement).value).toBe("2026-10-01");
-            expect((screen.getByLabelText("თარიღამდე") as HTMLInputElement).value).toBe("2026-10-02");
+            expect((screen.getByLabelText("თარიღიდან") as HTMLInputElement).value).toBe("01.10.2026");
+            expect((screen.getByLabelText("თარიღამდე") as HTMLInputElement).value).toBe("02.10.2026");
             await waitFor(() => expect(calls.map((c) => c.url)).toContain(`${base}/lookups`));
             expect((screen.getByLabelText("მასწავლებელი") as HTMLInputElement).placeholder).toBe("ყველა");
             expect(screen.getByLabelText("საგანი")).toBeInTheDocument();

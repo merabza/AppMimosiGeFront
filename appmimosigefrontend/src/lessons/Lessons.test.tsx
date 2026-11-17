@@ -13,6 +13,7 @@ import {
 import type { ILessonRow } from "../redux/types/lessonsTypes";
 import { currentMonth, currentWeek } from "./lessonsListFilter";
 import Lessons from "./Lessons";
+import { formatDate } from "../studentContracts/dateFormat";
 
 const lessonRow: ILessonRow = {
     lessonId: 9,
@@ -68,7 +69,7 @@ describe("Lessons", () => {
             { fieldName: "dateFrom", value: week.dateFrom },
             { fieldName: "dateTo", value: week.dateTo },
         ]);
-        expect(screen.getByLabelText("თარიღიდან")).toHaveValue(week.dateFrom);
+        expect(screen.getByLabelText("თარიღიდან")).toHaveValue(formatDate(week.dateFrom));
     });
 
     it("shows group, course, teacher, substitute, status and the counts", async () => {

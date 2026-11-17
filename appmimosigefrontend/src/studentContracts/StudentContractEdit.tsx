@@ -35,6 +35,7 @@ import {
     useHasStudentContractsRight,
 } from "./studentContractsMenu";
 import { useDefaultAcademicYearId } from "../academicYear/academicYearChoice";
+import DateInput from "../common/DateInput";
 
 //თანხა ბაზაში 4 ათწილადამდე ინახება (money) და გადათვლაც ასეთ მნიშვნელობას იძლევა (48 / 9 = 5.3333), ამიტომ
 //თანხის ველის ნაბიჯი არ იზღუდება: "0.01"-ზე ბრაუზერი ასეთ ფორმას არ აგზავნიდა (D60)
@@ -214,13 +215,12 @@ const StudentContractEdit: FC = () => {
                 <Col sm="2">
                     <Form.Group className="mb-2">
                         <Form.Label htmlFor="contractDate">თარიღი</Form.Label>
-                        <Form.Control
+                        <DateInput
                             id="contractDate"
-                            type="date"
                             required
                             value={form.contractDate}
-                            onChange={(e) =>
-                                setField("contractDate", e.target.value)
+                            onChange={(value) =>
+                                setField("contractDate", value)
                             }
                         />
                     </Form.Group>
